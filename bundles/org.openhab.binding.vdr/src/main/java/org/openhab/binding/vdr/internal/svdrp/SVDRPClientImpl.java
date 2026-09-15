@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -48,13 +48,11 @@ public class SVDRPClientImpl implements SVDRPClient {
     private @Nullable BufferedReader in = null;
 
     public SVDRPClientImpl(String host, int port) {
-        super();
         this.host = host;
         this.port = port;
     }
 
     public SVDRPClientImpl(String host, int port, String charset) {
-        super();
         this.host = host;
         this.port = port;
         this.charset = charset;
@@ -370,6 +368,44 @@ public class SVDRPClientImpl implements SVDRPClient {
 
         if (res.getCode() == 250) {
             return SVDRPChannel.parse(res.getMessage());
+        } else {
+            throw new SVDRPParseResponseException(res);
+        }
+    }
+
+    /**
+     * Change current Audio Track on SVDRP Client
+     *
+     * @param number Track to be set
+     * @throws SVDRPConnectionException thrown if connection to VDR failed or was not possible
+     * @throws SVDRPParseResponseException thrown if something's not OK with SVDRP response
+     */
+    @Override
+    public void setSVDRPAudio(int number) throws SVDRPConnectionException, SVDRPParseResponseException {
+        SVDRPResponse res = null;
+
+        res = execute(String.format("AUDI %s", number));
+
+        if (res.getCode() != 250) {
+            throw new SVDRPParseResponseException(res);
+        }
+    }
+
+    /**
+     * Retrieve current Audio object from SVDRP Client
+     *
+     * @return SVDRPAudio object
+     * @throws SVDRPConnectionException thrown if connection to VDR failed or was not possible
+     * @throws SVDRPParseResponseException thrown if something's not OK with SVDRP response
+     */
+    @Override
+    public SVDRPAudio getSVDRPAudio() throws SVDRPConnectionException, SVDRPParseResponseException {
+        SVDRPResponse res = null;
+
+        res = execute("AUDI");
+
+        if (res.getCode() == 250) {
+            return SVDRPAudio.parse(res.getMessage());
         } else {
             throw new SVDRPParseResponseException(res);
         }

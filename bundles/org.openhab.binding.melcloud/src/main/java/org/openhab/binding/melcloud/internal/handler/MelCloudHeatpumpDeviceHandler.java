@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -13,7 +13,6 @@
 package org.openhab.binding.melcloud.internal.handler;
 
 import static org.openhab.binding.melcloud.internal.MelCloudBindingConstants.*;
-import static org.openhab.core.library.unit.SIUnits.CELSIUS;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -22,13 +21,13 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import javax.measure.quantity.Temperature;
-
-import org.openhab.binding.melcloud.internal.api.json.HeatpumpDeviceStatus;
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
+import org.openhab.binding.melcloud.internal.MelCloudBindingConstants;
+import org.openhab.binding.melcloud.internal.api.dto.HeatpumpDeviceStatus;
 import org.openhab.binding.melcloud.internal.config.HeatpumpDeviceConfig;
 import org.openhab.binding.melcloud.internal.exceptions.MelCloudCommException;
 import org.openhab.binding.melcloud.internal.exceptions.MelCloudLoginException;
@@ -36,6 +35,7 @@ import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.QuantityType;
+import org.openhab.core.library.types.StringType;
 import org.openhab.core.library.unit.SIUnits;
 import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.Channel;
@@ -45,6 +45,7 @@ import org.openhab.core.thing.ThingStatus;
 import org.openhab.core.thing.ThingStatusDetail;
 import org.openhab.core.thing.ThingStatusInfo;
 import org.openhab.core.thing.binding.BaseThingHandler;
+import org.openhab.core.thing.binding.BridgeHandler;
 import org.openhab.core.thing.binding.ThingHandler;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.RefreshType;
@@ -56,17 +57,25 @@ import org.slf4j.LoggerFactory;
  * sent to one of the channels.
  *
  * @author Wietse van Buitenen - Initial contribution
+ * @author Alessio Galliazzo - Added heatpump functionalities for flow temperature and unit status
  */
+@NonNullByDefault
 public class MelCloudHeatpumpDeviceHandler extends BaseThingHandler {
     private static final long EFFECTIVE_FLAG_POWER = 1L;
-    private static final long EFFECTIVE_FLAG_TEMPERATURE_ZONE1 = 8589934720L;
+    private static final long EFFECTIVE_FLAG_TEMPERATURE_ZONE1 = 0x200000080L;
+    private static final long EFFECTIVE_FLAG_TEMPERATURE_ZONE2 = 0x800000200L;
     private static final long EFFECTIVE_FLAG_HOTWATER = 65536L;
+    private static final long EFFECTIVE_FLAG_HEAT_FLOW_TEMPERATURE_ZONE1 = 0x1000000000000L;
+    private static final long EFFECTIVE_FLAG_HEAT_FLOW_TEMPERATURE_ZONE2 = 0x1000000000000L;
+    private static final long EFFECTIVE_FLAG_HEAT_MODE_TEMPERATURE_ZONE1 = 0x08L;
+    private static final long EFFECTIVE_FLAG_HEAT_MODE_TEMPERATURE_ZONE2 = 0x10L;
+    private static final long EFFECTIVE_FLAG_TARGET_TANK_TEMPERATURE = 0x1000000000020L;
 
     private final Logger logger = LoggerFactory.getLogger(MelCloudHeatpumpDeviceHandler.class);
-    private HeatpumpDeviceConfig config;
-    private MelCloudAccountHandler melCloudHandler;
-    private HeatpumpDeviceStatus heatpumpDeviceStatus;
-    private ScheduledFuture<?> refreshTask;
+    private HeatpumpDeviceConfig config = new HeatpumpDeviceConfig();
+    private @Nullable MelCloudAccountHandler melCloudHandler;
+    private @Nullable HeatpumpDeviceStatus heatpumpDeviceStatus;
+    private @Nullable ScheduledFuture<?> refreshTask;
 
     public MelCloudHeatpumpDeviceHandler(Thing thing) {
         super(thing);
@@ -77,7 +86,7 @@ public class MelCloudHeatpumpDeviceHandler extends BaseThingHandler {
         logger.debug("Initializing {} handler.", getThing().getThingTypeUID());
 
         Bridge bridge = getBridge();
-        if (bridge == null) {
+        if (bridge == null || !(bridge.getHandler() instanceof BridgeHandler bridgeHandler)) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, "Bridge Not set");
             return;
         }
@@ -85,15 +94,16 @@ public class MelCloudHeatpumpDeviceHandler extends BaseThingHandler {
         config = getConfigAs(HeatpumpDeviceConfig.class);
         logger.debug("Heatpump device config: {}", config);
 
-        initializeBridge(bridge.getHandler(), bridge.getStatus());
+        initializeBridge(bridgeHandler, bridge.getStatus());
     }
 
     @Override
     public void dispose() {
         logger.debug("Running dispose()");
+        ScheduledFuture<?> refreshTask = this.refreshTask;
         if (refreshTask != null) {
             refreshTask.cancel(true);
-            refreshTask = null;
+            this.refreshTask = null;
         }
         melCloudHandler = null;
     }
@@ -102,26 +112,39 @@ public class MelCloudHeatpumpDeviceHandler extends BaseThingHandler {
     public void bridgeStatusChanged(ThingStatusInfo bridgeStatusInfo) {
         logger.debug("bridgeStatusChanged {} for thing {}", bridgeStatusInfo, getThing().getUID());
         Bridge bridge = getBridge();
-        if (bridge != null) {
-            initializeBridge(bridge.getHandler(), bridgeStatusInfo.getStatus());
+        if (bridge != null && bridge.getHandler() instanceof BridgeHandler bridgeHandler) {
+            initializeBridge(bridgeHandler, bridgeStatusInfo.getStatus());
         }
     }
 
     private void initializeBridge(ThingHandler thingHandler, ThingStatus bridgeStatus) {
         logger.debug("initializeBridge {} for thing {}", bridgeStatus, getThing().getUID());
 
-        if (thingHandler != null && bridgeStatus != null) {
-            melCloudHandler = (MelCloudAccountHandler) thingHandler;
+        melCloudHandler = (MelCloudAccountHandler) thingHandler;
 
-            if (bridgeStatus == ThingStatus.ONLINE) {
-                updateStatus(ThingStatus.ONLINE);
-                startAutomaticRefresh();
-            } else {
-                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.BRIDGE_OFFLINE);
-            }
+        if (bridgeStatus == ThingStatus.ONLINE) {
+            updateStatus(ThingStatus.ONLINE);
+            startAutomaticRefresh();
         } else {
-            updateStatus(ThingStatus.OFFLINE);
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.BRIDGE_OFFLINE);
         }
+    }
+
+    @Nullable
+    private BigDecimal convertOHValueToHPTemperature(Object command, double rounding) {
+        if (command instanceof QuantityType<?> quantityCommand) {
+            QuantityType<?> normalizedCelsiusTemperature = quantityCommand.toUnit(SIUnits.CELSIUS);
+            if (normalizedCelsiusTemperature == null) {
+                logger.debug("Can't convert '{}' to unit Celsius", quantityCommand);
+                return null;
+            }
+            BigDecimal val = normalizedCelsiusTemperature.toBigDecimal().setScale(1, RoundingMode.HALF_UP);
+            double inverseRound = 1 / rounding;
+            double v = Math.round(val.doubleValue() * inverseRound) / inverseRound;
+            return new BigDecimal(v);
+        }
+        logger.debug("Can't convert '{}' to set temperature", command);
+        return null;
     }
 
     @Override
@@ -133,54 +156,81 @@ public class MelCloudHeatpumpDeviceHandler extends BaseThingHandler {
             return;
         }
 
+        MelCloudAccountHandler melCloudHandler = this.melCloudHandler;
         if (melCloudHandler == null) {
             logger.warn("No connection to MELCloud available, ignoring command");
             return;
         }
-
+        HeatpumpDeviceStatus heatpumpDeviceStatus = this.heatpumpDeviceStatus;
         if (heatpumpDeviceStatus == null) {
             logger.info("No initial data available, bridge is probably offline. Ignoring command");
             return;
         }
 
-        HeatpumpDeviceStatus cmdtoSend = getHeatpumpDeviceStatusCopy(heatpumpDeviceStatus);
-        cmdtoSend.setEffectiveFlags(0L);
+        HeatpumpDeviceStatus commandToSend = getHeatpumpDeviceStatusCopy(heatpumpDeviceStatus);
+        commandToSend.setEffectiveFlags(0L);
 
         switch (channelUID.getId()) {
             case CHANNEL_POWER:
-                cmdtoSend.setPower(command == OnOffType.ON);
-                cmdtoSend.setEffectiveFlags(EFFECTIVE_FLAG_POWER);
+                commandToSend.setPower(command == OnOffType.ON);
+                commandToSend.setEffectiveFlags(EFFECTIVE_FLAG_POWER);
                 break;
             case CHANNEL_SET_TEMPERATURE_ZONE1:
-                BigDecimal val = null;
-                if (command instanceof QuantityType) {
-                    QuantityType<Temperature> quantity = new QuantityType<Temperature>(command.toString())
-                            .toUnit(CELSIUS);
-                    if (quantity != null) {
-                        val = quantity.toBigDecimal().setScale(1, RoundingMode.HALF_UP);
-                        // round nearest .5
-                        double v = Math.round(val.doubleValue() * 2) / 2.0;
-                        cmdtoSend.setSetTemperatureZone1(v);
-                        cmdtoSend.setEffectiveFlags(EFFECTIVE_FLAG_TEMPERATURE_ZONE1);
-                    }
+                BigDecimal v = this.convertOHValueToHPTemperature(command, 0.5);
+                if (v != null) {
+                    commandToSend.setSetTemperatureZone1(v.doubleValue());
+                    commandToSend.setEffectiveFlags(EFFECTIVE_FLAG_TEMPERATURE_ZONE1);
                 }
-                if (val == null) {
-                    logger.debug("Can't convert '{}' to set temperature", command);
+                break;
+            case CHANNEL_SET_TEMPERATURE_ZONE2:
+                BigDecimal zone2Temperature = this.convertOHValueToHPTemperature(command, 0.5);
+                if (zone2Temperature != null) {
+                    commandToSend.setSetTemperatureZone2(zone2Temperature.doubleValue());
+                    commandToSend.setEffectiveFlags(EFFECTIVE_FLAG_TEMPERATURE_ZONE2);
                 }
                 break;
             case CHANNEL_FORCED_HOTWATERMODE:
-                cmdtoSend.setForcedHotWaterMode(command == OnOffType.ON);
-                cmdtoSend.setEffectiveFlags(EFFECTIVE_FLAG_HOTWATER);
+                commandToSend.setForcedHotWaterMode(command == OnOffType.ON);
+                commandToSend.setEffectiveFlags(EFFECTIVE_FLAG_HOTWATER);
+                break;
+            case CHANNEL_HEAT_FLOW_TEMPERATURE_ZONE1:
+                BigDecimal heatFlowTemperatureZone1 = this.convertOHValueToHPTemperature(command, 1);
+                if (heatFlowTemperatureZone1 != null) {
+                    commandToSend.setSetHeatFlowTemperatureZone1(heatFlowTemperatureZone1.doubleValue());
+                    commandToSend.setEffectiveFlags(EFFECTIVE_FLAG_HEAT_FLOW_TEMPERATURE_ZONE1);
+                }
+                break;
+            case CHANNEL_HEAT_FLOW_TEMPERATURE_ZONE2:
+                BigDecimal heatFlowTemperatureZone2 = this.convertOHValueToHPTemperature(command, 1);
+                if (heatFlowTemperatureZone2 != null) {
+                    commandToSend.setSetHeatFlowTemperatureZone2(heatFlowTemperatureZone2.doubleValue());
+                    commandToSend.setEffectiveFlags(EFFECTIVE_FLAG_HEAT_FLOW_TEMPERATURE_ZONE2);
+                }
+                break;
+            case CHANNEL_HEAT_TEMPERATURE_MODE_ZONE1:
+                commandToSend.setOperationModeZone1(Integer.parseInt(command.toString()));
+                commandToSend.setEffectiveFlags(EFFECTIVE_FLAG_HEAT_MODE_TEMPERATURE_ZONE1);
+                break;
+            case CHANNEL_HEAT_TEMPERATURE_MODE_ZONE2:
+                commandToSend.setOperationModeZone2(Integer.parseInt(command.toString()));
+                commandToSend.setEffectiveFlags(EFFECTIVE_FLAG_HEAT_MODE_TEMPERATURE_ZONE2);
+                break;
+            case CHANNEL_TANK_TARGET_WATER_TEMPERATURE:
+                BigDecimal tankWaterTemperature = this.convertOHValueToHPTemperature(command, 1);
+                if (tankWaterTemperature != null) {
+                    commandToSend.setSetTankWaterTemperature(tankWaterTemperature.doubleValue());
+                    commandToSend.setEffectiveFlags(EFFECTIVE_FLAG_TARGET_TANK_TEMPERATURE);
+                }
                 break;
             default:
                 logger.debug("Read-only or unknown channel {}, skipping update", channelUID);
         }
 
-        if (cmdtoSend.getEffectiveFlags() > 0) {
-            cmdtoSend.setHasPendingCommand(true);
-            cmdtoSend.setDeviceID(config.deviceID);
+        if (commandToSend.getEffectiveFlags() > 0) {
+            commandToSend.setHasPendingCommand(true);
+            commandToSend.setDeviceID(config.deviceID);
             try {
-                HeatpumpDeviceStatus newHeatpumpDeviceStatus = melCloudHandler.sendHeatpumpDeviceStatus(cmdtoSend);
+                HeatpumpDeviceStatus newHeatpumpDeviceStatus = melCloudHandler.sendHeatpumpDeviceStatus(commandToSend);
                 updateChannels(newHeatpumpDeviceStatus);
             } catch (MelCloudLoginException e) {
                 logger.warn("Command '{}' to channel '{}' failed due to login error, reason {}. ", command, channelUID,
@@ -202,23 +252,33 @@ public class MelCloudHeatpumpDeviceHandler extends BaseThingHandler {
             copy.setSetTemperatureZone1(heatpumpDeviceStatus.getSetTemperatureZone1());
             copy.setForcedHotWaterMode(heatpumpDeviceStatus.getForcedHotWaterMode());
             copy.setHasPendingCommand(heatpumpDeviceStatus.getHasPendingCommand());
+            copy.setSetHeatFlowTemperatureZone1(heatpumpDeviceStatus.getSetHeatFlowTemperatureZone1());
+            copy.setSetHeatFlowTemperatureZone2(heatpumpDeviceStatus.getSetHeatFlowTemperatureZone2());
+            copy.setSetCoolFlowTemperatureZone1(heatpumpDeviceStatus.getSetCoolFlowTemperatureZone1());
+            copy.setSetCoolFlowTemperatureZone2(heatpumpDeviceStatus.getSetCoolFlowTemperatureZone2());
+            copy.setOperationModeZone1(heatpumpDeviceStatus.getOperationModeZone1());
+            copy.setOperationModeZone2(heatpumpDeviceStatus.getOperationModeZone2());
+            copy.setSetTankWaterTemperature(heatpumpDeviceStatus.getSetTankWaterTemperature());
+            copy.setUnitStatus(heatpumpDeviceStatus.getUnitStatus());
         }
         return copy;
     }
 
     private void startAutomaticRefresh() {
+        ScheduledFuture<?> refreshTask = this.refreshTask;
         if (refreshTask == null || refreshTask.isCancelled()) {
-            refreshTask = scheduler.scheduleWithFixedDelay(this::getDeviceDataAndUpdateChannels, 1,
+            this.refreshTask = scheduler.scheduleWithFixedDelay(this::getDeviceDataAndUpdateChannels, 1,
                     config.pollingInterval, TimeUnit.SECONDS);
         }
     }
 
     private void getDeviceDataAndUpdateChannels() {
-        if (melCloudHandler.isConnected()) {
+        MelCloudAccountHandler melCloudHandler = this.melCloudHandler;
+        if (melCloudHandler != null && melCloudHandler.isConnected()) {
             logger.debug("Update device '{}' channels", getThing().getThingTypeUID());
             try {
                 HeatpumpDeviceStatus newHeatpumpDeviceStatus = melCloudHandler
-                        .fetchHeatpumpDeviceStatus(config.deviceID, Optional.ofNullable(config.buildingID));
+                        .fetchHeatpumpDeviceStatus(config.deviceID, config.buildingID);
                 updateChannels(newHeatpumpDeviceStatus);
             } catch (MelCloudLoginException e) {
                 logger.debug("Login error occurred during device '{}' polling, reason {}. ",
@@ -233,7 +293,7 @@ public class MelCloudHeatpumpDeviceHandler extends BaseThingHandler {
     }
 
     private synchronized void updateChannels(HeatpumpDeviceStatus newHeatpumpDeviceStatus) {
-        heatpumpDeviceStatus = newHeatpumpDeviceStatus;
+        HeatpumpDeviceStatus heatpumpDeviceStatus = this.heatpumpDeviceStatus = newHeatpumpDeviceStatus;
         for (Channel channel : getThing().getChannels()) {
             updateChannels(channel.getUID().getId(), heatpumpDeviceStatus);
         }
@@ -252,9 +312,17 @@ public class MelCloudHeatpumpDeviceHandler extends BaseThingHandler {
                 updateState(CHANNEL_SET_TEMPERATURE_ZONE1,
                         new QuantityType<>(heatpumpDeviceStatus.getSetTemperatureZone1(), SIUnits.CELSIUS));
                 break;
+            case CHANNEL_SET_TEMPERATURE_ZONE2:
+                updateState(CHANNEL_SET_TEMPERATURE_ZONE2,
+                        new QuantityType<>(heatpumpDeviceStatus.getSetTemperatureZone2(), SIUnits.CELSIUS));
+                break;
             case CHANNEL_ROOM_TEMPERATURE_ZONE1:
                 updateState(CHANNEL_ROOM_TEMPERATURE_ZONE1,
                         new DecimalType(heatpumpDeviceStatus.getRoomTemperatureZone1()));
+                break;
+            case CHANNEL_ROOM_TEMPERATURE_ZONE2:
+                updateState(CHANNEL_ROOM_TEMPERATURE_ZONE2,
+                        new DecimalType(heatpumpDeviceStatus.getRoomTemperatureZone2()));
                 break;
             case CHANNEL_FORCED_HOTWATERMODE:
                 updateState(CHANNEL_FORCED_HOTWATERMODE, OnOffType.from(heatpumpDeviceStatus.getForcedHotWaterMode()));
@@ -272,6 +340,30 @@ public class MelCloudHeatpumpDeviceHandler extends BaseThingHandler {
                 break;
             case CHANNEL_OFFLINE:
                 updateState(CHANNEL_OFFLINE, OnOffType.from(heatpumpDeviceStatus.getOffline()));
+                break;
+            case CHANNEL_HEAT_FLOW_TEMPERATURE_ZONE1:
+                updateState(CHANNEL_HEAT_FLOW_TEMPERATURE_ZONE1,
+                        new DecimalType(heatpumpDeviceStatus.getSetHeatFlowTemperatureZone1()));
+                break;
+            case CHANNEL_HEAT_TEMPERATURE_MODE_ZONE1:
+                updateState(CHANNEL_HEAT_TEMPERATURE_MODE_ZONE1,
+                        new DecimalType(heatpumpDeviceStatus.getOperationModeZone1()));
+                break;
+            case CHANNEL_HEAT_FLOW_TEMPERATURE_ZONE2:
+                updateState(CHANNEL_HEAT_FLOW_TEMPERATURE_ZONE2,
+                        new DecimalType(heatpumpDeviceStatus.getOperationModeZone2()));
+                break;
+            case CHANNEL_HEAT_TEMPERATURE_MODE_ZONE2:
+                updateState(CHANNEL_HEAT_TEMPERATURE_MODE_ZONE2,
+                        new DecimalType(heatpumpDeviceStatus.getOperationModeZone2()));
+                break;
+            case CHANNEL_OPERATION_MODE:
+                updateState(MelCloudBindingConstants.CHANNEL_OPERATION_MODE,
+                        new StringType(heatpumpDeviceStatus.getOperationMode().toString()));
+                break;
+            case CHANNEL_TANK_TARGET_WATER_TEMPERATURE:
+                updateState(CHANNEL_TANK_TARGET_WATER_TEMPERATURE,
+                        new QuantityType<>(heatpumpDeviceStatus.getSetTankWaterTemperature(), SIUnits.CELSIUS));
                 break;
         }
     }

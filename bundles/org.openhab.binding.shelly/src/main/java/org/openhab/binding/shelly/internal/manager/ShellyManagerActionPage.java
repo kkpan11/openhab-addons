@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -24,6 +24,7 @@ import java.util.Map;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.http.HttpStatus;
+import org.openhab.binding.shelly.internal.ShellyBindingConstants;
 import org.openhab.binding.shelly.internal.ShellyHandlerFactory;
 import org.openhab.binding.shelly.internal.api.ShellyApiException;
 import org.openhab.binding.shelly.internal.api.ShellyApiInterface;
@@ -32,7 +33,7 @@ import org.openhab.binding.shelly.internal.api1.Shelly1ApiJsonDTO.ShellyOtaCheck
 import org.openhab.binding.shelly.internal.api1.Shelly1ApiJsonDTO.ShellySettingsLogin;
 import org.openhab.binding.shelly.internal.api1.Shelly1CoapJSonDTO;
 import org.openhab.binding.shelly.internal.api1.Shelly1HttpApi;
-import org.openhab.binding.shelly.internal.config.ShellyThingConfiguration;
+import org.openhab.binding.shelly.internal.config.ShellyApiConfiguration;
 import org.openhab.binding.shelly.internal.handler.ShellyManagerInterface;
 import org.openhab.binding.shelly.internal.provider.ShellyTranslationProvider;
 import org.openhab.core.thing.ThingStatusDetail;
@@ -50,8 +51,10 @@ public class ShellyManagerActionPage extends ShellyManagerPage {
     private final Logger logger = LoggerFactory.getLogger(ShellyManagerActionPage.class);
 
     public ShellyManagerActionPage(ConfigurationAdmin configurationAdmin, ShellyTranslationProvider translationProvider,
-            HttpClient httpClient, String localIp, int localPort, ShellyHandlerFactory handlerFactory) {
-        super(configurationAdmin, translationProvider, httpClient, localIp, localPort, handlerFactory);
+            HttpClient httpClient, String localIp, int localPort, ShellyHandlerFactory handlerFactory,
+            ShellyManagerCache<String, FwRepoEntry> firmwareRepo, ShellyManagerCache<String, FwArchList> firmwareArch) {
+        super(configurationAdmin, translationProvider, httpClient, localIp, localPort, handlerFactory, firmwareRepo,
+                firmwareArch);
     }
 
     @Override
@@ -80,7 +83,7 @@ public class ShellyManagerActionPage extends ShellyManagerPage {
             String serviceName = getValue(properties, PROPERTY_SERVICE_NAME);
             String message = "";
 
-            ShellyThingConfiguration config = getThingConfig(th, properties);
+            ShellyApiConfiguration config = th.getApiConfig();
             ShellyDeviceProfile profile = th.getProfile();
             ShellyApiInterface api = th.getApi();
             new Shelly1HttpApi(uid, config, httpClient);
@@ -103,7 +106,7 @@ public class ShellyManagerActionPage extends ShellyManagerPage {
                                 // maybe the device restarts before returning the http response
                             }
                             setRestarted(th, uid); // refresh after reboot
-                        }).start();
+                        }, "OH-binding-" + ShellyBindingConstants.BINDING_ID + "-" + uid + "-deviceReboot").start();
                         refreshTimer = profile.isMotion ? 60 : 30;
                     } else {
                         message = getMessageS("action.restart.confirm", MCINFO);
@@ -112,7 +115,9 @@ public class ShellyManagerActionPage extends ShellyManagerPage {
                     break;
                 case ACTION_PROTECT:
                     // Get device settings
-                    if (config.userId.isEmpty() || config.password.isEmpty()) {
+                    String userId = config.getUserId();
+                    String password = config.getPassword();
+                    if (userId.isBlank() || password.isBlank()) {
                         message = getMessageP("action.protect.id-missing", MCWARNING);
                         break;
                     }
@@ -120,12 +125,11 @@ public class ShellyManagerActionPage extends ShellyManagerPage {
                     if (!"yes".equalsIgnoreCase(update)) {
                         ShellySettingsLogin status = api.getLoginSettings();
                         message = getMessage("action.protect.status", getBool(status.enabled) ? "enabled" : "disabled",
-                                status.username)
-                                + getMessageP("action.protect.new", MCINFO, config.userId, config.password);
+                                status.username) + getMessageP("action.protect.new", MCINFO, userId, password);
                         actionUrl = buildActionUrl(uid, action);
                     } else {
-                        api.setLoginCredentials(config.userId, config.password);
-                        message = getMessageP("action.protect.confirm", MCINFO, config.userId, config.password);
+                        api.setLoginCredentials(userId, password);
+                        message = getMessageP("action.protect.confirm", MCINFO, userId, password);
                         refreshTimer = 3;
                     }
                     break;
@@ -162,7 +166,7 @@ public class ShellyManagerActionPage extends ShellyManagerPage {
                                 // maybe the device restarts before returning the http response
                             }
                             setRestarted(th, uid); // refresh after reboot
-                        }).start();
+                        }, "OH-binding-" + ShellyBindingConstants.BINDING_ID + "-" + uid + "-reboot").start();
 
                         // The device needs a restart after changing the peer mode
                         message = getMessageP("action.restart.info", MCINFO);
@@ -188,7 +192,7 @@ public class ShellyManagerActionPage extends ShellyManagerPage {
                             } catch (ShellyApiException e) {
                                 // maybe the device restarts before returning the http response
                             }
-                        }).start();
+                        }, "OH-binding-" + ShellyBindingConstants.BINDING_ID + "-" + uid + "-factoryReset").start();
                         message = getMessageP("action.reset.confirm", MCINFO, serviceName);
                         refreshTimer = 5;
                     }
@@ -216,7 +220,7 @@ public class ShellyManagerActionPage extends ShellyManagerPage {
                             } catch (ShellyApiException e) {
                                 // maybe the device restarts before returning the http response
                             }
-                        }).start();
+                        }, "OH-binding-" + ShellyBindingConstants.BINDING_ID + "-" + uid + "-setDebug").start();
 
                         message = getMessage("action.debug-confirm", enable ? "enabled" : "disabled");
                         refreshTimer = 3;
@@ -424,10 +428,9 @@ public class ShellyManagerActionPage extends ShellyManagerPage {
 
         if (!gen2 && profile.extFeatures) {
             list.put(ACTION_OTACHECK, "Check for Update");
-            boolean debug_enable = getBool(profile.settings.debugEnable);
-            list.put(!debug_enable ? ACTION_ENDEBUG : ACTION_DISDEBUG,
-                    !debug_enable ? "Enable Debug" : "Disable Debug");
-            if (debug_enable) {
+            boolean debugEnable = getBool(profile.settings.debugEnable);
+            list.put(!debugEnable ? ACTION_ENDEBUG : ACTION_DISDEBUG, !debugEnable ? "Enable Debug" : "Disable Debug");
+            if (debugEnable) {
                 list.put(ACTION_GETDEB, "Get Debug log");
                 list.put(ACTION_GETDEB1, "Get Debug log1");
             }

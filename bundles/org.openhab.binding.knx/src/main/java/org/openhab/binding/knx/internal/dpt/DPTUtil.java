@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -33,11 +33,11 @@ import org.openhab.core.types.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import tuwien.auto.calimero.dptxlator.DPTXlator3BitControlled;
-import tuwien.auto.calimero.dptxlator.DPTXlator8BitSigned;
-import tuwien.auto.calimero.dptxlator.DPTXlator8BitUnsigned;
-import tuwien.auto.calimero.dptxlator.DPTXlatorBoolean;
-import tuwien.auto.calimero.dptxlator.DPTXlatorString;
+import io.calimero.dptxlator.DPTXlator3BitControlled;
+import io.calimero.dptxlator.DPTXlator8BitSigned;
+import io.calimero.dptxlator.DPTXlator8BitUnsigned;
+import io.calimero.dptxlator.DPTXlatorBoolean;
+import io.calimero.dptxlator.DPTXlatorString;
 
 /**
  * This class provides support to determine compatibility between KNX DPTs and openHAB data types
@@ -50,7 +50,7 @@ import tuwien.auto.calimero.dptxlator.DPTXlatorString;
 public class DPTUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(DPTUtil.class);
 
-    // DPT: "123.001", 1-3 digits main type (no leading zero), optional sub-type 3-4 digits (leading zeros allowed)
+    // DPT: "123.001", 1-3 digits main type (no leading zero), optional subtype 3-4 digits (leading zeros allowed)
     public static final Pattern DPT_PATTERN = Pattern.compile("^(?<main>[1-9][0-9]{0,2})(?:\\.(?<sub>\\d{3,5}))?$");
 
     // used to map vendor-specific data to standard DPT
@@ -96,6 +96,8 @@ public class DPTUtil {
 
     // compatible types for full DPTs
     private static final Map<String, Set<Class<? extends Type>>> DPT_TYPE_MAP = Map.ofEntries(
+            Map.entry("0.000", Set.of(StringType.class)), // special handling as raw format, should be passed through as
+                                                          // a string
             Map.entry(DPTXlatorBoolean.DPT_UPDOWN.getID(), Set.of(UpDownType.class)), //
             Map.entry(DPTXlatorBoolean.DPT_OPENCLOSE.getID(), Set.of(OpenClosedType.class)), //
             Map.entry(DPTXlatorBoolean.DPT_START.getID(), Set.of(StopMoveType.class)), //

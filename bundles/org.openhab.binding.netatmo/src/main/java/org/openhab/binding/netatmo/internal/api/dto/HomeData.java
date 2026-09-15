@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,6 +12,7 @@
  */
 package org.openhab.binding.netatmo.internal.api.dto;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -34,7 +35,7 @@ import org.openhab.binding.netatmo.internal.deserialization.NAObjectMap;
  */
 
 @NonNullByDefault
-public class HomeData extends NAThing implements NAModule, LocationEx {
+public class HomeData extends NAThing implements NAModule, Location {
     public class HomesDataResponse extends ApiResponse<ListBodyResponse<HomeData>> {
     }
 
@@ -59,8 +60,8 @@ public class HomeData extends NAThing implements NAModule, LocationEx {
         private int thermSetpointDefaultDuration;
         private List<ThermProgram> schedules = List.of();
 
-        public int getThermSetpointDefaultDuration() {
-            return thermSetpointDefaultDuration;
+        public Duration getSetpointDefaultDuration() {
+            return Duration.ofMinutes(thermSetpointDefaultDuration);
         }
 
         public SetpointMode getThermMode() {
@@ -103,12 +104,10 @@ public class HomeData extends NAThing implements NAModule, LocationEx {
         return coordinates;
     }
 
-    @Override
     public Optional<String> getCountry() {
         return Optional.ofNullable(country);
     }
 
-    @Override
     public Optional<String> getTimezone() {
         return Optional.ofNullable(timezone);
     }

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -13,8 +13,8 @@
 package org.openhab.automation.jsscripting.internal.scope;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -32,8 +32,8 @@ import org.osgi.service.component.annotations.Activate;
  * @author Jonathan Gilbert - Initial contribution
  */
 public abstract class AbstractScriptExtensionProvider implements ScriptExtensionProvider {
-    private Map<String, Function<String, Object>> types = new HashMap<>();
-    private Map<String, Map<String, Object>> idToTypes = new ConcurrentHashMap<>();
+    protected final Map<String, Function<String, Object>> types = new HashMap<>();
+    protected final Map<String, Map<String, Object>> idToTypes = new ConcurrentHashMap<>();
 
     protected abstract String getPresetName();
 
@@ -51,7 +51,7 @@ public abstract class AbstractScriptExtensionProvider implements ScriptExtension
 
     @Override
     public Collection<String> getDefaultPresets() {
-        return Collections.emptyList();
+        return List.of();
     }
 
     @Override
@@ -73,15 +73,15 @@ public abstract class AbstractScriptExtensionProvider implements ScriptExtension
 
     @Override
     public Map<String, Object> importPreset(String scriptIdentifier, String preset) {
-        if (getPresetName().equals(preset)) {
-            Map<String, Object> results = new HashMap<>(types.size());
-            for (String type : types.keySet()) {
-                results.put(type, get(scriptIdentifier, type));
-            }
-            return results;
+        if (!getPresetName().equals(preset)) {
+            return Map.of();
         }
 
-        return Collections.emptyMap();
+        Map<String, Object> results = new HashMap<>(types.size());
+        for (String type : types.keySet()) {
+            results.put(type, get(scriptIdentifier, type));
+        }
+        return results;
     }
 
     @Override

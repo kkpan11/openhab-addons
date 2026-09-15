@@ -24,6 +24,7 @@
 			<default>55000</default>
 		</parameter>
 		<parameter name="macAddress" type="text">
+			<context>mac-address</context>
 			<label>MAC Address</label>
 			<description>MAC Address of the Samsung TV.</description>
 		</parameter>
@@ -55,6 +56,19 @@
 			<default>false</default>
 			<advanced>true</advanced>
 		</parameter>
+		<parameter name="orientationKey" type="text">
+			<label>Key code to send to rotate TV</label>
+			<description>Only works with optional rotating mount</description>
+			<default>KEY_MULTI_VIEW</default>
+			<advanced>true</advanced>
+		</parameter>
+		<parameter name="legacyCipherSuites" type="boolean">
+			<label>Allow Legacy Cipher Suites</label>
+			<description>Allows the cipher suites Jetty excludes, for older TVs. Turn it off to keep those exclusions and drop
+				the warnings. Off requires a TV certificate with the common name SmartViewSDK.</description>
+			<default>true</default>
+			<advanced>true</advanced>
+		</parameter>
 		<parameter name="smartThingsApiKey" type="text" groupName="Cloud Connection">
 			<label>Smartthings PAT</label>
 			<description>Go to https://account.smartthings.com/tokens and obtain a Personal Access Token, enter it here.</description>
@@ -63,6 +77,12 @@
 		<parameter name="smartThingsDeviceId" type="text" groupName="Cloud Connection">
 			<label>Smartthings Device ID</label>
 			<description>Once your PAT is entered and saved, look in the log for the Device ID for this TV, enter it here.</description>
+			<advanced>true</advanced>
+		</parameter>
+		<parameter name="smartThingsSubscription" type="boolean" groupName="Cloud Connection">
+			<label>Subscribe to SmartThings</label>
+			<description>Reduces polling on SmartThings, by subscribing to Device Events</description>
+			<default>true</default>
 			<advanced>true</advanced>
 		</parameter>
 	</config-description>

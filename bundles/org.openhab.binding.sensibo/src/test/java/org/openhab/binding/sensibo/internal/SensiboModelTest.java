@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -24,7 +24,7 @@ import org.openhab.binding.sensibo.internal.model.SensiboSky;
 
 /**
  * @author Arne Seime - Initial contribution
- * 
+ *
  */
 public class SensiboModelTest {
 
@@ -32,15 +32,14 @@ public class SensiboModelTest {
 
     @Test
     public void testCaseInsensitiveMacAddress() throws IOException {
-
         final PodDetailsDTO rsp = wireHelper.deSerializeResponse("/get_pod_details_response.json", PodDetailsDTO.class);
         SensiboSky sky = new SensiboSky(rsp);
 
         SensiboModel model = new SensiboModel(0);
         model.addPod(sky);
 
-        assertFalse(model.findSensiboSkyByMacAddress("MA:C:AD:DR:ES:XX").isPresent());
-        assertTrue(model.findSensiboSkyByMacAddress("MA:C:AD:DR:ES:S0").isPresent());
-        assertTrue(model.findSensiboSkyByMacAddress("MA:C:AD:DR:ES:S0".toLowerCase()).isPresent());
+        assertFalse(model.findSensiboSkyByMacAddress("AA:BB:CC:DD:EE:00").isPresent());
+        assertTrue(model.findSensiboSkyByMacAddress("AA:BB:CC:DD:EE:FF").isPresent());
+        assertTrue(model.findSensiboSkyByMacAddress("AA:BB:CC:DD:EE:FF".toLowerCase()).isPresent());
     }
 }

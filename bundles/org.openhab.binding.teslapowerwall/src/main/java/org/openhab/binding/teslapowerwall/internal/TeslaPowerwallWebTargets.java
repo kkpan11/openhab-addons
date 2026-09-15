@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.client.api.Request;
@@ -31,6 +32,7 @@ import org.openhab.binding.teslapowerwall.internal.api.SystemStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -54,6 +56,8 @@ public class TeslaPowerwallWebTargets {
     private final Logger logger = LoggerFactory.getLogger(TeslaPowerwallWebTargets.class);
     private HttpClient httpClient;
 
+    private final Gson gson = new Gson();
+
     public TeslaPowerwallWebTargets(String hostname, HttpClient httpClient) {
         this.httpClient = httpClient;
         String baseUri = "https://" + hostname + "/";
@@ -65,39 +69,39 @@ public class TeslaPowerwallWebTargets {
         getOperationUri = baseUri + "api/operation";
     }
 
+    @Nullable
     public BatterySOE getBatterySOE(String email, String password)
             throws TeslaPowerwallCommunicationException, TeslaPowerwallAuthenticationException {
         String response = invoke(getBatterySOEUri, email, password);
-        logger.trace("getBatterySOE response = {}", response);
-        return BatterySOE.parse(response);
+        return gson.fromJson(response, BatterySOE.class);
     }
 
+    @Nullable
     public GridStatus getGridStatus(String email, String password)
             throws TeslaPowerwallCommunicationException, TeslaPowerwallAuthenticationException {
         String response = invoke(getGridStatusUri, email, password);
-        logger.trace("getGridStatus response = {}", response);
-        return GridStatus.parse(response);
+        return gson.fromJson(response, GridStatus.class);
     }
 
+    @Nullable
     public SystemStatus getSystemStatus(String email, String password)
             throws TeslaPowerwallCommunicationException, TeslaPowerwallAuthenticationException {
         String response = invoke(getSystemStatusUri, email, password);
-        logger.trace("getSystemStatus response = {}", response);
-        return SystemStatus.parse(response);
+        return gson.fromJson(response, SystemStatus.class);
     }
 
+    @Nullable
     public MeterAggregates getMeterAggregates(String email, String password)
             throws TeslaPowerwallCommunicationException, TeslaPowerwallAuthenticationException {
         String response = invoke(getMeterAggregatesUri, email, password);
-        logger.trace("getMeterAggregates response = {}", response);
-        return MeterAggregates.parse(response);
+        return gson.fromJson(response, MeterAggregates.class);
     }
 
+    @Nullable
     public Operations getOperations(String email, String password)
             throws TeslaPowerwallCommunicationException, TeslaPowerwallAuthenticationException {
         String response = invoke(getOperationUri, email, password);
-        logger.trace("getOperations response = {}", response);
-        return Operations.parse(response);
+        return gson.fromJson(response, Operations.class);
     }
 
     public String getToken(String email, String password)
@@ -129,30 +133,37 @@ public class TeslaPowerwallWebTargets {
         logger.debug("Calling url: {}", uri);
         int status = 0;
         String jsonResponse = "";
-        synchronized (this) {
-            try {
-                Request request = httpClient.newRequest(uri).method(method).header(headerKey, headerValue)
-                        .timeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                        .content(new StringContentProvider(params), "application/json");
-                if (logger.isTraceEnabled()) {
-                    logger.trace("{} request for {}", method, uri);
-                }
-                ContentResponse response = request.send();
-                status = response.getStatus();
-                jsonResponse = response.getContentAsString();
-                if (!jsonResponse.isEmpty()) {
-                    logger.trace("JSON response: '{}'", jsonResponse);
-                }
-                if (status == HttpStatus.UNAUTHORIZED_401) {
-                    throw new TeslaPowerwallAuthenticationException("Unauthorized");
-                }
-                if (!HttpStatus.isSuccess(status)) {
-                    throw new TeslaPowerwallCommunicationException(
-                            String.format("Tesla Powerwall returned error <%d> while invoking %s", status, uri));
-                }
-            } catch (TimeoutException | ExecutionException | InterruptedException ex) {
-                throw new TeslaPowerwallCommunicationException(String.format("{}", ex.getLocalizedMessage(), ex));
+        try {
+            Request request = httpClient.newRequest(uri).method(method).header(headerKey, headerValue)
+                    .timeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                    .content(new StringContentProvider(params), "application/json");
+            if (logger.isTraceEnabled()) {
+                logger.trace("{} request for {}", method, uri);
             }
+            ContentResponse response = request.send();
+            status = response.getStatus();
+            jsonResponse = response.getContentAsString();
+            if (!jsonResponse.isEmpty()) {
+                logger.trace("JSON response: '{}'", jsonResponse);
+            }
+            if (status == HttpStatus.UNAUTHORIZED_401) {
+                this.token = ""; // reset token
+                throw new TeslaPowerwallAuthenticationException("Unauthorized");
+            }
+            if (!HttpStatus.isSuccess(status)) {
+                throw new TeslaPowerwallCommunicationException(
+                        String.format("Tesla Powerwall returned error <%d> while invoking %s", status, uri));
+            }
+        } catch (TimeoutException | ExecutionException | InterruptedException ex) {
+            if (ex instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            String errorMessage = ex.getMessage();
+            if (errorMessage == null) {
+                errorMessage = "Unknown communication error occurred (" + ex.getClass().getSimpleName() + ")";
+            }
+
+            throw new TeslaPowerwallCommunicationException(errorMessage, ex);
         }
 
         return jsonResponse;

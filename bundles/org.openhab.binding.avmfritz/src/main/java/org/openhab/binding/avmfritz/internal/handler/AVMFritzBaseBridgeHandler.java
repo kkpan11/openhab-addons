@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
-import org.openhab.binding.avmfritz.internal.AVMFritzBindingConstants;
 import org.openhab.binding.avmfritz.internal.AVMFritzDynamicCommandDescriptionProvider;
 import org.openhab.binding.avmfritz.internal.config.AVMFritzBoxConfiguration;
 import org.openhab.binding.avmfritz.internal.discovery.AVMFritzDiscoveryService;
@@ -39,7 +38,6 @@ import org.openhab.binding.avmfritz.internal.dto.GroupModel;
 import org.openhab.binding.avmfritz.internal.dto.templates.TemplateModel;
 import org.openhab.binding.avmfritz.internal.hardware.FritzAhaStatusListener;
 import org.openhab.binding.avmfritz.internal.hardware.FritzAhaWebInterface;
-import org.openhab.binding.avmfritz.internal.hardware.callbacks.FritzAhaApplyTemplateCallback;
 import org.openhab.binding.avmfritz.internal.hardware.callbacks.FritzAhaUpdateCallback;
 import org.openhab.binding.avmfritz.internal.hardware.callbacks.FritzAhaUpdateTemplatesCallback;
 import org.openhab.core.library.types.StringType;
@@ -65,6 +63,7 @@ import org.slf4j.LoggerFactory;
  * @author Christoph Weitkamp - Added support for AVM FRITZ!DECT 300 and Comet DECT
  * @author Christoph Weitkamp - Added support for groups
  * @author Ulrich Mertin - Added support for HAN-FUN blinds
+ * @author Andrew Fiddian-Green - Added support for HAN-FUN sensor and 'host' (Gerät)
  */
 @NonNullByDefault
 public abstract class AVMFritzBaseBridgeHandler extends BaseBridgeHandler {
@@ -147,7 +146,9 @@ public abstract class AVMFritzBaseBridgeHandler extends BaseBridgeHandler {
     protected synchronized void manageConnections() {
         AVMFritzBoxConfiguration config = getConfigAs(AVMFritzBoxConfiguration.class);
         if (this.connection == null) {
-            this.connection = new FritzAhaWebInterface(config, this, httpClient);
+            FritzAhaWebInterface webInterface = new FritzAhaWebInterface(config, this, httpClient);
+            this.connection = webInterface;
+            webInterface.authenticate();
             stopPolling();
             startPolling();
         }
@@ -168,6 +169,12 @@ public abstract class AVMFritzBaseBridgeHandler extends BaseBridgeHandler {
     @Override
     public void dispose() {
         stopPolling();
+        FritzAhaWebInterface webInterface = connection;
+        connection = null;
+        if (webInterface != null) {
+            webInterface.dispose();
+        }
+        super.dispose();
     }
 
     @Override
@@ -251,7 +258,8 @@ public abstract class AVMFritzBaseBridgeHandler extends BaseBridgeHandler {
     }
 
     /**
-     * Called from {@link FritzAhaApplyTemplateCallback} to provide new templates for things.
+     * Called from {@link org.openhab.binding.avmfritz.internal.hardware.callbacks.FritzAhaApplyTemplateCallback} to
+     * provide new templates for things.
      *
      * @param templateList list of template models
      */
@@ -268,28 +276,26 @@ public abstract class AVMFritzBaseBridgeHandler extends BaseBridgeHandler {
     public void onDeviceListAdded(List<AVMFritzBaseModel> deviceList) {
         final Map<String, AVMFritzBaseModel> deviceIdentifierMap = deviceList.stream()
                 .collect(Collectors.toMap(it -> it.getIdentifier(), Function.identity()));
-        getThing().getThings().forEach(childThing -> {
-            final AVMFritzBaseThingHandler childHandler = (AVMFritzBaseThingHandler) childThing.getHandler();
-            if (childHandler != null) {
-                final AVMFritzBaseModel device = deviceIdentifierMap.get(childHandler.getIdentifier());
-                if (device != null) {
-                    deviceList.remove(device);
-                    listeners.forEach(listener -> listener.onDeviceUpdated(childThing.getUID(), device));
-                } else {
-                    listeners.forEach(listener -> listener.onDeviceGone(childThing.getUID()));
-                }
-            } else {
-                logger.debug("Handler missing for thing '{}'", childThing.getUID());
-            }
-        });
-        deviceList.forEach(device -> {
-            listeners.forEach(listener -> listener.onDeviceAdded(device));
-        });
+
+        listeners.stream().filter(listener -> listener instanceof AVMFritzBaseThingHandler)
+                .map(listener -> (AVMFritzBaseThingHandler) listener).forEach(handler -> {
+                    if (deviceIdentifierMap.get(handler.getIdentifier()) instanceof AVMFritzBaseModel device) {
+                        device.isLinked = true;
+                        scheduler.submit(() -> handler.onDeviceUpdated(handler.getThing().getUID(), device));
+                    } else {
+                        scheduler.submit(() -> handler.onDeviceGone(handler.getThing().getUID()));
+                    }
+                });
+
+        deviceIdentifierMap.values().stream().filter(device -> !device.isLinked)
+                .forEach(device -> listeners.stream().filter(listener -> listener instanceof AVMFritzDiscoveryService)
+                        .map(listener -> (AVMFritzDiscoveryService) listener)
+                        .forEach(service -> scheduler.submit(() -> service.onDeviceAdded(device))));
     }
 
     /**
      * Builds a {@link ThingUID} from a device model. The UID is build from the
-     * {@link AVMFritzBindingConstants#BINDING_ID} and
+     * {@link org.openhab.binding.avmfritz.internal.AVMFritzBindingConstants#BINDING_ID} and
      * value of {@link AVMFritzBaseModel#getProductName()} in which all characters NOT matching the RegEx [^a-zA-Z0-9_]
      * are replaced by "_".
      *
@@ -303,7 +309,9 @@ public abstract class AVMFritzBaseBridgeHandler extends BaseBridgeHandler {
         String thingName = getThingName(device);
 
         if (thingTypeUID != null && (SUPPORTED_BUTTON_THING_TYPES_UIDS.contains(thingTypeUID)
+                || SUPPORTED_LIGHTING_THING_TYPES.contains(thingTypeUID)
                 || SUPPORTED_HEATING_THING_TYPES.contains(thingTypeUID)
+                || SUPPORTED_POWER_METER_THING_TYPES.contains(thingTypeUID)
                 || SUPPORTED_DEVICE_THING_TYPES_UIDS.contains(thingTypeUID))) {
             return new ThingUID(thingTypeUID, bridgeUID, thingName);
         } else if (device.isHeatingThermostat()) {
@@ -322,7 +330,9 @@ public abstract class AVMFritzBaseBridgeHandler extends BaseBridgeHandler {
      */
     public String getThingTypeId(AVMFritzBaseModel device) {
         if (device instanceof GroupModel) {
-            if (device.isHeatingThermostat()) {
+            if (device.isHANFUNBlinds()) {
+                return GROUP_BLINDS;
+            } else if (device.isHeatingThermostat()) {
                 return GROUP_HEATING;
             } else if (device.isSwitchableOutlet()) {
                 return GROUP_SWITCH;
@@ -335,7 +345,7 @@ public abstract class AVMFritzBaseBridgeHandler extends BaseBridgeHandler {
             } else if (device.isDimmableLight()) {
                 return DEVICE_HAN_FUN_DIMMABLE_BULB;
             }
-            List<String> interfaces = Arrays.asList(deviceModel.getEtsiunitinfo().getInterfaces().split(","));
+            List<String> interfaces = Arrays.stream(deviceModel.getEtsiunitinfo().getInterfaces().split(",")).toList();
             if (interfaces.contains(HAN_FUN_INTERFACE_ALERT)) {
                 return DEVICE_HAN_FUN_CONTACT;
             } else if (interfaces.contains(HAN_FUN_INTERFACE_SIMPLE_BUTTON)) {
@@ -343,8 +353,17 @@ public abstract class AVMFritzBaseBridgeHandler extends BaseBridgeHandler {
             } else if (interfaces.contains(HAN_FUN_INTERFACE_ON_OFF)) {
                 return DEVICE_HAN_FUN_ON_OFF;
             }
+            if (device.isHumiditySensor() || device.isTemperatureSensor()) {
+                return DEVICE_HAN_FUN_SENSOR;
+            }
+        } else if (device instanceof DeviceModel && device.isHANFUNDevice()
+                && (device.isHANFUNBattery() || (device.getBattery() != null) || (device.getBatterylow() != null))) {
+            // offer the host device as a potential thing -- but only if it should support battery channels
+            return DEVICE_HAN_FUN_HOST;
         }
-        return device.getProductName().replaceAll(INVALID_PATTERN, "_");
+        String productName = device.getProductName().replaceAll(INVALID_PATTERN, "_");
+        String productAlias = ALIAS_PRODUCT_NAME_MAP.get(productName.toUpperCase());
+        return productAlias != null ? productAlias : productName;
     }
 
     /**

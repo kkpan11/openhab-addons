@@ -77,6 +77,15 @@
 		</channels>
 	</channel-group-type>
 
+	<channel-group-type id="dimmerSwitch">
+		<label>Dimmer Switch</label>
+		<description>Kasa Smart Wi-Fi Dimmer Switch</description>
+		<channels>
+			<channel id="output" typeId="lightOn"/>
+			<channel id="brightness" typeId="dimmerChannel"/>
+		</channels>
+	</channel-group-type>
+
 	<!-- Color Channel Type -->
 	<channel-group-type id="colorBulb">
 		<label>Color Light Bulb</label>
@@ -86,7 +95,7 @@
 			<channel id="mode" typeId="colorBulbMode"/>
 			<channel id="brightness" typeId="dimmerChannel"/>
 			<channel id="color" typeId="colorChannel"/>
-			<channel id="colorTemperature" typeId="colorTemperature"/>
+			<channel id="colorTemperature" typeId="system.color-temperature-abs"/>
 		</channels>
 	</channel-group-type>
 
@@ -142,6 +151,60 @@
 		<channels>
 			<channel id="currentTemp" typeId="temperatureChannel"></channel>
 			<channel id="currentHumidity" typeId="humidityChannel"></channel>
+		</channels>
+	</channel-group-type>
+
+	<!-- Light Switch -->
+	<channel-group-type id="lightSwitch">
+		<label>Light Switch</label>
+		<description>Tapo Smart Light Switch</description>
+		<channels>
+			<channel id="output" typeId="lightOn"/>
+		</channels>
+	</channel-group-type>
+
+	<!-- CAMERA GROUP TYPES -->
+	<channel-group-type id="cameraAlarm">
+		<label>Alarm Control</label>
+		<description>Siren control and alarm information of the camera</description>
+		<channels>
+			<channel id="manualAlarm" typeId="manualAlarmChannel"/>
+			<channel id="alarmMode" typeId="cameraAlarmModeChannel"/>
+			<channel id="lastAlarmType" typeId="lastAlarmTypeChannel"/>
+			<channel id="lastAlarmTime" typeId="lastAlarmTimeChannel"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="cameraPrivacy">
+		<label>Privacy</label>
+		<description>Privacy shutter control of the camera</description>
+		<channels>
+			<channel id="privacyMode" typeId="privacyModeChannel"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="cameraMotion">
+		<label>Motion Detection</label>
+		<description>Motion detection settings of the camera</description>
+		<channels>
+			<channel id="enabled" typeId="motionEnabledChannel"/>
+			<channel id="sensitivity" typeId="motionSensitivityChannel"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="cameraPresets">
+		<label>Presets</label>
+		<description>Preset positions of the camera</description>
+		<channels>
+			<channel id="gotoPreset" typeId="gotoPresetChannel"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="cameraSystem">
+		<label>Device Settings</label>
+		<description>Basic device settings of the camera</description>
+		<channels>
+			<channel id="ledStatus" typeId="cameraLedStatusChannel"/>
 		</channels>
 	</channel-group-type>
 

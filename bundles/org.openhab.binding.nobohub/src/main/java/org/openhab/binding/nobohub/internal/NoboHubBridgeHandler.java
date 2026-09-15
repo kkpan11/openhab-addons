@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -158,8 +158,8 @@ public class NoboHubBridgeHandler extends BaseBridgeHandler {
                 logger.debug("Done connecting to {} ({})", hostName, serialNumber);
 
                 Duration timeout = RECOMMENDED_KEEPALIVE_INTERVAL;
-                if (config.pollingInterval > 0) {
-                    timeout = Duration.ofSeconds(config.pollingInterval);
+                if (config.keepaliveInterval > 0) {
+                    timeout = Duration.ofSeconds(config.keepaliveInterval);
                 }
 
                 logger.debug("Starting communication thread to {}", hostName);

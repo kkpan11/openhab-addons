@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -14,9 +14,9 @@ package org.openhab.binding.enocean.internal.discovery;
 
 import static org.openhab.binding.enocean.internal.EnOceanBindingConstants.*;
 
+import java.util.HashSet;
 import java.util.Set;
 
-import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.enocean.internal.eep.Base.UTEResponse;
@@ -85,8 +85,11 @@ public class EnOceanDeviceDiscoveryService extends AbstractDiscoveryService impl
     }
 
     @Override
-    public Set<@NonNull ThingTypeUID> getSupportedThingTypes() {
-        return SUPPORTED_DEVICE_THING_TYPES_UIDS;
+    public Set<ThingTypeUID> getSupportedThingTypes() {
+        // Exclude manual-only thing types (datagramInjector) from discovery
+        Set<ThingTypeUID> discoverableTypes = new HashSet<>(SUPPORTED_DEVICE_THING_TYPES_UIDS);
+        discoverableTypes.remove(THING_TYPE_DATAGRAMINJECTOR);
+        return discoverableTypes;
     }
 
     @Override
@@ -155,26 +158,24 @@ public class EnOceanDeviceDiscoveryService extends AbstractDiscoveryService impl
 
             SMACKTeachInResponse response = EEPFactory.buildResponseFromSMACKTeachIn(event,
                     bridgeHandler.sendTeachOuts());
-            if (response != null) {
-                bridgeHandler.sendMessage(response, null);
+            bridgeHandler.sendMessage(response, null);
 
-                if (response.isTeachIn()) {
-                    // SenderIdOffset will be determined during Thing init
-                    createDiscoveryResult(eep, false, -1);
-                } else if (response.isTeachOut()) {
-                    // disable already teached in thing
-                    bridgeHandler.getThing().getThings().stream()
-                            .filter(t -> t.getConfiguration().getProperties()
-                                    .getOrDefault(PARAMETER_ENOCEANID, EMPTYENOCEANID).toString()
-                                    .equals(HexUtils.bytesToHex(eep.getSenderId())))
-                            .findFirst().ifPresentOrElse(t -> {
-                                thingManager.setEnabled(t.getUID(), false);
-                                logger.info("Disable thing with id {}", t.getUID());
-                            }, () -> {
-                                logger.info("Thing for EnOceanId {} already deleted",
-                                        HexUtils.bytesToHex(eep.getSenderId()));
-                            });
-                }
+            if (response.isTeachIn()) {
+                // SenderIdOffset will be determined during Thing init
+                createDiscoveryResult(eep, false, -1);
+            } else if (response.isTeachOut()) {
+                // disable already teached in thing
+                bridgeHandler.getThing().getThings().stream()
+                        .filter(t -> t.getConfiguration().getProperties()
+                                .getOrDefault(PARAMETER_ENOCEANID, EMPTYENOCEANID).toString()
+                                .equals(HexUtils.bytesToHex(eep.getSenderId())))
+                        .findFirst().ifPresentOrElse(t -> {
+                            thingManager.setEnabled(t.getUID(), false);
+                            logger.info("Disable thing with id {}", t.getUID());
+                        }, () -> {
+                            logger.info("Thing for EnOceanId {} already deleted",
+                                    HexUtils.bytesToHex(eep.getSenderId()));
+                        });
             }
         }
     }

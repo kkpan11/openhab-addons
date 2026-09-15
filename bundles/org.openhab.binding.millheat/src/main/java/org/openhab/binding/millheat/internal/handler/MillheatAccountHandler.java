@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -78,6 +78,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.Strictness;
 
 /**
  * The {@link MillheatAccountHandler} is responsible for handling commands, which are
@@ -112,7 +113,7 @@ public class MillheatAccountHandler extends BaseBridgeHandler {
 
         gson = new GsonBuilder().setPrettyPrinting().setDateFormat("yyyy-MM-dd HH:mm:ss")
                 .registerTypeAdapter(Boolean.class, serializer).registerTypeAdapter(boolean.class, serializer)
-                .setLenient().create();
+                .setStrictness(Strictness.LENIENT).create();
         requestLogger = new RequestLogger(bridge.getUID().getId(), gson);
     }
 
@@ -420,7 +421,7 @@ public class MillheatAccountHandler extends BaseBridgeHandler {
         try {
             switch (property) {
                 case SetHolidayParameterRequest.PROP_START: {
-                    long epoch = ((DateTimeType) command).getZonedDateTime().toEpochSecond();
+                    long epoch = ((DateTimeType) command).getInstant().getEpochSecond();
                     SetHolidayParameterRequest req = new SetHolidayParameterRequest(home.getId(), home.getTimezone(),
                             SetHolidayParameterRequest.PROP_START, epoch);
                     if (sendLoggedInRequest(req, SetHolidayParameterResponse.class).isSuccess()) {
@@ -429,7 +430,7 @@ public class MillheatAccountHandler extends BaseBridgeHandler {
                     break;
                 }
                 case SetHolidayParameterRequest.PROP_END: {
-                    long epoch = ((DateTimeType) command).getZonedDateTime().toEpochSecond();
+                    long epoch = ((DateTimeType) command).getInstant().getEpochSecond();
                     SetHolidayParameterRequest req = new SetHolidayParameterRequest(home.getId(), home.getTimezone(),
                             SetHolidayParameterRequest.PROP_END, epoch);
                     if (sendLoggedInRequest(req, SetHolidayParameterResponse.class).isSuccess()) {

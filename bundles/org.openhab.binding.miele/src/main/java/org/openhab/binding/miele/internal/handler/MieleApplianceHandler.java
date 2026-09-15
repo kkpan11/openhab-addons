@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -52,6 +52,7 @@ import org.openhab.core.types.Command;
 import org.openhab.core.types.RefreshType;
 import org.openhab.core.types.State;
 import org.openhab.core.types.UnDefType;
+import org.openhab.core.util.HexUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -263,8 +264,10 @@ public abstract class MieleApplianceHandler<E extends Enum<E> & ApplianceChannel
             if (EXTENDED_DEVICE_STATE_PROPERTY_NAME.equals(dp.Name)) {
                 if (!dp.Value.isEmpty()) {
                     byte[] extendedStateBytes = DeviceUtil.stringToBytes(dp.Value);
-                    logger.trace("Extended device state for {}: {}", getThing().getUID(),
-                            DeviceUtil.bytesToHex(extendedStateBytes));
+                    if (logger.isTraceEnabled()) {
+                        logger.trace("Extended device state for {}: {}", getThing().getUID(),
+                                HexUtils.bytesToHex(extendedStateBytes));
+                    }
                     if (this instanceof ExtendedDeviceStateListener listener) {
                         listener.onApplianceExtendedStateChanged(extendedStateBytes);
                     }

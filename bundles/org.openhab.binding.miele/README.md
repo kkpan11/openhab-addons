@@ -37,7 +37,7 @@ To avoid this, there is a discovery configuration parameter `removalGracePeriod`
 The default value is 15 seconds.
 If you want to change this value just add the following line to your `$OPENHAB_CONF/services/runtime.cfg` file.
 
-```text
+```ini
 discovery.miele:removalGracePeriod=30
 ```
 
@@ -48,7 +48,6 @@ discovery.miele:removalGracePeriod=30
 | Configuration Parameter | Description                                                                                                                      |
 |-------------------------|----------------------------------------------------------------------------------------------------------------------------------|
 | ipAddress               | Network address of the Miele@home gateway                                                                                        |
-| interface               | Network address of openHAB host interface where the binding will listen for multicast events coming from the Miele@home gateway. |
 | userName                | Name of a registered Miele@home user.                                                                                            |
 | password                | Password for the registered Miele@home user.                                                                                     |
 | language                | Language for state, program and phase texts. Leave blank for system language.                                                    |
@@ -367,7 +366,7 @@ See oven.
 | failure             | Switch               | Read       | Signals failure, check appliance for details                         |
 | switch              | Switch               | Write      | Switch the appliance on or off                                       |
 | target              | Number:Temperature   | Read       | Temperature of the selected program (10 °C = cold)                   |
-| spinningspeed       | String               | Read       | Spinning speed in the program running on the appliance               |
+| spinningspeed       | Number:Frequency     | Read       | Spinning speed of the currently running program on the appliance     |
 | energyConsumption   | Number:Energy        | Read       | Energy consumption by the currently running program on the appliance |
 | waterConsumption    | Number:Volume        | Read       | Water consumption by the currently running program on the appliance  |
 | laundryWeight       | Number:Mass          | Read       | Weight of the laundry inside the appliance                           |
@@ -423,7 +422,7 @@ See oven.
 ## things/miele.things
 
 ```java
-Bridge miele:xgw3000:home [ipAddress="192.168.0.18", interface="192.168.0.5"] {
+Bridge miele:xgw3000:home [ipAddress="192.168.0.18"] {
     Things:
         Thing fridgefreezer freezer [uid="00124b000424be44#2"]
         Thing hood hood [uid="001d63fffe020685#210"]
@@ -472,7 +471,7 @@ Number WashingMachine_RawState                                {channel="miele:wa
 String WashingMachine_Program "Program [%s]"                  {channel="miele:washingmachine:home:washingmachine:program"}
 String WashingMachine_Phase "Phase [%s]"                      {channel="miele:washingmachine:home:washingmachine:phase"}
 Number:Temperature WashingMachine_Temperature <temperature>   {channel="miele:washingmachine:home:washingmachine:target"}
-String WashingMachine_SpinningSpeed                           {channel="miele:washingmachine:home:washingmachine:spinningspeed"}
+Number:Frequency WashingMachine_SpinningSpeed                 {channel="miele:washingmachine:home:washingmachine:spinningspeed", unit="rpm"}
 Number:Time WashingMachine_ElapsedTime "Elapsed time" <time>  {channel="miele:washingmachine:home:washingmachine:elapsed"}
 Number:Time WashingMachine_FinishTime "Remaining time" <time> {channel="miele:washingmachine:home:washingmachine:finish"}
 Number:Energy WashingMachine_EnergyConsumption                {channel="miele:washingmachine:home:washingmachine:energyConsumption"}
@@ -516,7 +515,7 @@ sitemap miele label="Miele" {
         }
         Text item=Dishwasher_State label="Dishwasher [%s]" icon="dryer" {
             Text item=Dishwasher_Program visibility=[Dishwasher_RawState>1]
-            Text itemDishwasher_Phase visibility=[Dishwasher_Phase!=UNDEF]
+            Text item=Dishwasher_Phase visibility=[Dishwasher_Phase!=UNDEF]
             Text item=Dishwasher_ElapsedTime
             Text item=Dishwasher_FinishTime
             Text item=Dishwasher_EnergyConsumption

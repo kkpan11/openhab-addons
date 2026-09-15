@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -17,7 +17,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -28,10 +27,10 @@ import org.openhab.core.items.ItemRegistry;
 import org.openhab.core.persistence.FilterCriteria;
 import org.openhab.core.persistence.FilterCriteria.Ordering;
 import org.openhab.core.persistence.HistoricItem;
-import org.openhab.core.persistence.PersistenceItemInfo;
 import org.openhab.core.persistence.PersistenceService;
 import org.openhab.core.persistence.QueryablePersistenceService;
 import org.openhab.core.persistence.strategy.PersistenceStrategy;
+import org.openhab.core.types.State;
 import org.openhab.core.types.UnDefType;
 import org.openhab.persistence.jpa.internal.model.JpaPersistentItem;
 import org.osgi.framework.BundleContext;
@@ -170,9 +169,9 @@ public class JpaPersistenceService implements QueryablePersistenceService {
                 // a duplicate timestamp. Just ignore
                 logger.debug("Failed to persist item {} because of duplicate timestamp", name);
             } else {
-                logger.error("Error while persisting item! Rolling back!", e);
+                logger.error("Error while persisting item! Rolling back if needed.", e);
             }
-            em.getTransaction().rollback();
+            rollbackIfActive(em, "persisting item " + name);
         } finally {
             em.close();
         }
@@ -181,12 +180,12 @@ public class JpaPersistenceService implements QueryablePersistenceService {
     }
 
     @Override
-    public Set<PersistenceItemInfo> getItemInfo() {
-        return Set.of();
+    public Iterable<HistoricItem> query(FilterCriteria filter) {
+        return query(filter, null);
     }
 
     @Override
-    public Iterable<HistoricItem> query(FilterCriteria filter) {
+    public Iterable<HistoricItem> query(FilterCriteria filter, @Nullable String alias) {
         logger.debug("Querying for historic item: {}", filter.getItemName());
 
         if (!initialized) {
@@ -214,6 +213,7 @@ public class JpaPersistenceService implements QueryablePersistenceService {
 
         boolean hasBeginDate = false;
         boolean hasEndDate = false;
+        State state = null;
         String queryString = "SELECT n FROM " + JpaPersistentItem.class.getSimpleName()
                 + " n WHERE n.realName = :itemName";
         if (filter.getBeginDate() != null) {
@@ -223,6 +223,9 @@ public class JpaPersistenceService implements QueryablePersistenceService {
         if (filter.getEndDate() != null) {
             queryString += " AND n.timestamp <= :endDate";
             hasEndDate = true;
+        }
+        if ((state = filter.getState()) != null) {
+            queryString += " AND n.value " + filter.getOperator().getSymbol() + " :state";
         }
         queryString += " ORDER BY n.timestamp " + sortOrder;
 
@@ -235,12 +238,15 @@ public class JpaPersistenceService implements QueryablePersistenceService {
 
             logger.debug("Creating query...");
             Query query = em.createQuery(queryString);
-            query.setParameter("itemName", item.getName());
+            query.setParameter("itemName", alias != null ? alias : item.getName());
             if (hasBeginDate) {
                 query.setParameter("beginDate", Date.from(filter.getBeginDate().toInstant()));
             }
             if (hasEndDate) {
                 query.setParameter("endDate", Date.from(filter.getEndDate().toInstant()));
+            }
+            if (state != null) {
+                query.setParameter("state", StateHelper.toString(state));
             }
 
             query.setFirstResult(filter.getPageNumber() * filter.getPageSize());
@@ -260,7 +266,7 @@ public class JpaPersistenceService implements QueryablePersistenceService {
             return historicList;
         } catch (Exception e) {
             logger.error("Error while querying database!", e);
-            em.getTransaction().rollback();
+            rollbackIfActive(em, "querying historic items");
         } finally {
             em.close();
         }
@@ -317,6 +323,16 @@ public class JpaPersistenceService implements QueryablePersistenceService {
      */
     protected boolean isEntityManagerFactoryOpen() {
         return emf != null && emf.isOpen();
+    }
+
+    private void rollbackIfActive(EntityManager em, String operation) {
+        try {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+        } catch (Exception rollbackException) {
+            logger.warn("Rollback after {} failed", operation, rollbackException);
+        }
     }
 
     /**

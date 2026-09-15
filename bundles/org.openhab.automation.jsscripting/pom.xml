@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>org.openhab.addons.bundles</groupId>
     <artifactId>org.openhab.addons.reactor.bundles</artifactId>
-    <version>4.3.0-SNAPSHOT</version>
+    <version>5.3.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>org.openhab.automation.jsscripting</artifactId>
@@ -15,46 +15,74 @@
   <name>openHAB Add-ons :: Bundles :: Automation :: JavaScript Scripting</name>
 
   <properties>
-    <bnd.importpackage>
-      !sun.misc.*,
-      !sun.reflect.*,
-      !com.sun.management.*,
-      !jdk.internal.reflect.*,
-      !jdk.vm.ci.services
-    </bnd.importpackage>
-    <graal.version>22.0.0.2</graal.version> <!-- DO NOT UPGRADE: 22.0.0.2 is the latest version working on armv7l / OpenJDK 11.0.16 & armv7l / Zulu 17.0.5+8 -->
-    <oh.version>${project.version}</oh.version>
-    <ohjs.version>openhab@5.5.0</ohjs.version>
+    <ohjs.version>v5.21.0</ohjs.version>
   </properties>
+
+  <dependencies>
+    <!-- Graal Polyglot Framework -->
+    <dependency>
+      <groupId>org.openhab.osgiify</groupId>
+      <artifactId>org.graalvm.polyglot.polyglot</artifactId>
+      <version>${graalvm.version}</version>
+      <!-- provided as OSGi bundle at runtime, available only at compile time -->
+      <scope>provided</scope>
+    </dependency>
+    <!-- Graal JavaScript ScriptEngine JSR 223 support -->
+    <dependency>
+      <groupId>org.openhab.osgiify</groupId>
+      <artifactId>org.graalvm.js.js-scriptengine</artifactId>
+      <version>${graalvm.version}</version>
+      <!-- provided as OSGi bundle at runtime, available only at compile time -->
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
 
   <build>
     <plugins>
-      <!-- exclude META-INF/services/com.oracle.truffle.api.TruffleLanguage$Provider when unpacking dependencies -->
+      <!-- clone openhab-js -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
+        <artifactId>maven-scm-plugin</artifactId>
+        <version>2.2.1</version>
+        <configuration>
+          <providerImplementations>
+            <git>jgit</git>
+          </providerImplementations>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.maven.scm</groupId>
+            <artifactId>maven-scm-provider-jgit</artifactId>
+            <version>2.2.1</version>
+          </dependency>
+        </dependencies>
         <executions>
           <execution>
-            <id>embed-dependencies</id>
+            <id>checkout-openhab-js</id>
             <goals>
-              <goal>unpack-dependencies</goal>
+              <goal>checkout</goal>
             </goals>
+            <phase>initialize</phase>
             <configuration>
-              <excludes>META-INF/services/com.oracle.truffle.api.TruffleLanguage$Provider</excludes> <!-- we'll provide this -->
+              <connectionUrl>scm:git:https://github.com/openhab/openhab-js.git</connectionUrl>
+              <checkoutDirectory>${project.build.directory}/js/openhab-js</checkoutDirectory>
+              <scmVersion>${ohjs.version}</scmVersion>
+              <scmVersionType>tag</scmVersionType>
+              <shallow>true</shallow>
             </configuration>
           </execution>
         </executions>
       </plugin>
-      <!-- bundle the openhab-js library -->
+
       <plugin>
         <groupId>com.github.eirslett</groupId>
         <artifactId>frontend-maven-plugin</artifactId>
-        <version>1.15.0</version>
         <configuration>
-          <nodeVersion>v16.17.1</nodeVersion> <!-- DO NOT DOWNGRADE: NodeJS < 16 doesn't support Apple Silicon -->
-          <workingDirectory>target/js</workingDirectory>
+          <installDirectory>${project.build.directory}/js</installDirectory>
+          <workingDirectory>${project.build.directory}/js/openhab-js</workingDirectory>
         </configuration>
         <executions>
+          <!-- install Node.js and npm -->
           <execution>
             <id>Install node and npm</id>
             <goals>
@@ -62,45 +90,46 @@
             </goals>
             <phase>generate-sources</phase>
           </execution>
+          <!-- install dependencies -->
           <execution>
             <id>npm install</id>
             <goals>
               <goal>npm</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
-              <!--suppress UnresolvedMavenProperty -->
-              <arguments>install ${ohjs.version} webpack@^5.87.0 webpack-cli@^5.1.4</arguments> <!-- webpack & webpack-cli versions should match to the ones from openhab-js -->
+              <arguments>ci</arguments>
             </configuration>
           </execution>
+          <!-- bundle openhab-js -->
           <execution>
-            <id>npx webpack (openhab-js globals injection)</id>
+            <id>npm run webpack (openhab-js)</id>
             <goals>
-              <goal>npx</goal>
+              <goal>npm</goal>
             </goals>
             <configuration>
-              <!--suppress UnresolvedMavenProperty -->
-              <arguments>webpack -c ./node_modules/openhab/build/@globals-webpack.config.js --entry-reset --entry
-                ./node_modules/openhab/build/@openhab-globals.js -o ./dist</arguments>
+              <arguments>run webpack</arguments>
             </configuration>
           </execution>
+          <!-- bundle openhab-js type definitions -->
           <execution>
-            <id>npx webpack (openhab-js)</id>
+            <id>npm run types:bundle (openhab-js)</id>
             <goals>
-              <goal>npx</goal>
+              <goal>npm</goal>
             </goals>
             <configuration>
-              <!--suppress UnresolvedMavenProperty -->
-              <arguments>webpack -c ./node_modules/openhab/build/webpack.config.js --entry-reset --entry
-                ./node_modules/openhab/ -o ./dist</arguments>
+              <arguments>run types:bundle</arguments>
             </configuration>
           </execution>
         </executions>
       </plugin>
+      <!-- embed the JS resources into the bundle -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
         <executions>
           <execution>
+            <id>add-js-resource</id>
             <goals>
               <goal>add-resource</goal>
             </goals>
@@ -108,7 +137,7 @@
             <configuration>
               <resources>
                 <resource>
-                  <directory>target/js/dist</directory>
+                  <directory>${project.build.directory}/js/openhab-js/dist</directory>
                   <targetPath>node_modules</targetPath>
                 </resource>
               </resources>
@@ -124,37 +153,13 @@
           <pmdFilter>${project.basedir}/suppressions.properties</pmdFilter>
         </configuration>
       </plugin>
+      <!-- workaround for failing clean of checked out git repo breaking the Windows build, #19250 -->
+      <plugin>
+        <artifactId>maven-clean-plugin</artifactId>
+        <configuration>
+          <force>true</force>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
-
-  <dependencies>
-    <dependency>
-      <groupId>org.graalvm.sdk</groupId>
-      <artifactId>graal-sdk</artifactId>
-      <version>${graal.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.graalvm.truffle</groupId>
-      <artifactId>truffle-api</artifactId>
-      <version>${graal.version}</version>
-    </dependency>
-    <!-- Graal JavaScript ScriptEngine JSR 223 support -->
-    <dependency>
-      <groupId>org.graalvm.js</groupId>
-      <artifactId>js-scriptengine</artifactId>
-      <version>${graal.version}</version>
-    </dependency>
-    <!-- Graal TRegex engine (internally used by Graal JavaScript engine) -->
-    <dependency>
-      <groupId>org.graalvm.regex</groupId>
-      <artifactId>regex</artifactId>
-      <version>${graal.version}</version>
-    </dependency>
-    <!-- Graal JavaScript engine (depends on Graal TRegex engine, must be added after it) -->
-    <dependency>
-      <groupId>org.graalvm.js</groupId>
-      <artifactId>js</artifactId>
-      <version>${graal.version}</version>
-    </dependency>
-  </dependencies>
 </project>

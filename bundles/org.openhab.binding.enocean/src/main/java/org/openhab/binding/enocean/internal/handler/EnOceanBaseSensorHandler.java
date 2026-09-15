@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -18,6 +18,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Hashtable;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +33,7 @@ import org.openhab.binding.enocean.internal.eep.EEPType;
 import org.openhab.binding.enocean.internal.messages.BasePacket;
 import org.openhab.binding.enocean.internal.messages.ERP1Message;
 import org.openhab.binding.enocean.internal.messages.ERP1Message.RORG;
+import org.openhab.binding.enocean.internal.statemachine.STMStateMachine;
 import org.openhab.binding.enocean.internal.transceiver.PacketListener;
 import org.openhab.core.config.core.Configuration;
 import org.openhab.core.thing.Channel;
@@ -65,6 +67,8 @@ public class EnOceanBaseSensorHandler extends EnOceanBaseThingHandler implements
 
     protected @Nullable ScheduledFuture<?> responseFuture = null;
 
+    protected @Nullable STMStateMachine<?, ?> stm = null;
+
     public EnOceanBaseSensorHandler(Thing thing, ItemChannelLinkRegistry itemChannelLinkRegistry) {
         super(thing, itemChannelLinkRegistry);
     }
@@ -87,7 +91,7 @@ public class EnOceanBaseSensorHandler extends EnOceanBaseThingHandler implements
             config.receivingEEPId.forEach(receivingEEP -> {
                 EEPType receivingEEPType = EEPType.getType(receivingEEP);
                 EEPType existingKey = receivingEEPTypes.putIfAbsent(receivingEEPType.getRORG(), receivingEEPType);
-                if (existingKey != null) {
+                if (!Objects.isNull(existingKey)) {
                     throw new IllegalArgumentException("Receiving more than one EEP of the same RORG is not supported");
                 }
             });
@@ -155,7 +159,7 @@ public class EnOceanBaseSensorHandler extends EnOceanBaseThingHandler implements
         ERP1Message msg = (ERP1Message) packet;
 
         EEPType localReceivingType = receivingEEPTypes.get(msg.getRORG());
-        if (localReceivingType == null) {
+        if (Objects.isNull(localReceivingType)) {
             return;
         }
 
@@ -180,7 +184,7 @@ public class EnOceanBaseSensorHandler extends EnOceanBaseThingHandler implements
                         switch (channel.getKind()) {
                             case STATE:
                                 State result = eep.convertToState(channelId, channelTypeId, channelConfig,
-                                        this::getCurrentState);
+                                        this::getCurrentState, stm);
 
                                 // if message can be interpreted (result != UnDefType.UNDEF) => update item state
                                 if (result != UnDefType.UNDEF) {
@@ -189,7 +193,8 @@ public class EnOceanBaseSensorHandler extends EnOceanBaseThingHandler implements
                                 break;
                             case TRIGGER:
                                 String lastEvent = lastEvents.get(channelId);
-                                String event = eep.convertToEvent(channelId, channelTypeId, lastEvent, channelConfig);
+                                String event = eep.convertToEvent(channelId, channelTypeId, lastEvent, channelConfig,
+                                        stm);
                                 if (event != null) {
                                     triggerChannel(channel.getUID(), event);
                                     lastEvents.put(channelId, event);

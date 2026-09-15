@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,14 +12,16 @@
  */
 package org.openhab.binding.vdr.internal;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.openhab.binding.vdr.internal.svdrp.SVDRPAudio;
+import org.openhab.binding.vdr.internal.svdrp.SVDRPAudioTrack;
 import org.openhab.binding.vdr.internal.svdrp.SVDRPChannel;
 import org.openhab.binding.vdr.internal.svdrp.SVDRPClient;
 import org.openhab.binding.vdr.internal.svdrp.SVDRPClientImpl;
@@ -29,7 +31,6 @@ import org.openhab.binding.vdr.internal.svdrp.SVDRPEpgEvent;
 import org.openhab.binding.vdr.internal.svdrp.SVDRPException;
 import org.openhab.binding.vdr.internal.svdrp.SVDRPParseResponseException;
 import org.openhab.binding.vdr.internal.svdrp.SVDRPVolume;
-import org.openhab.core.i18n.TimeZoneProvider;
 import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
@@ -45,6 +46,7 @@ import org.openhab.core.thing.binding.BaseThingHandler;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.RefreshType;
 import org.openhab.core.types.State;
+import org.openhab.core.types.StateOption;
 import org.openhab.core.types.UnDefType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,15 +62,15 @@ public class VDRHandler extends BaseThingHandler {
 
     private final Logger logger = LoggerFactory.getLogger(VDRHandler.class);
 
-    private final TimeZoneProvider timeZoneProvider;
+    private final VDRDynamicStateDescriptionProvider stateDescriptionProvider;
 
     private VDRConfiguration config = new VDRConfiguration();
 
     private @Nullable ScheduledFuture<?> refreshThreadFuture = null;
 
-    public VDRHandler(Thing thing, TimeZoneProvider timeZoneProvider) {
+    public VDRHandler(Thing thing, VDRDynamicStateDescriptionProvider stateDescriptionProvider) {
         super(thing);
-        this.timeZoneProvider = timeZoneProvider;
+        this.stateDescriptionProvider = stateDescriptionProvider;
     }
 
     /**
@@ -138,6 +140,13 @@ public class VDRHandler extends BaseThingHandler {
                         result = new DecimalType(channel.getNumber());
                         updateState(channelUID, result);
                         break;
+                    case VDRBindingConstants.CHANNEL_UID_AUDIO:
+                        con.setSVDRPAudio(Integer.parseInt(cmd));
+                        SVDRPAudio audio = con.getSVDRPAudio();
+                        updateAudioTrackOptions(audio);
+                        result = new DecimalType(audio.getActiveTrackNumber());
+                        updateState(channelUID, result);
+                        break;
                     case VDRBindingConstants.CHANNEL_UID_VOLUME:
                         SVDRPVolume volume = con.setSVDRPVolume(Integer.parseInt(cmd));
                         result = new PercentType(volume.getVolume());
@@ -203,6 +212,11 @@ public class VDRHandler extends BaseThingHandler {
                             SVDRPChannel svdrpChannel = con.getCurrentSVDRPChannel();
                             result = new StringType(svdrpChannel.getName());
                             break;
+                        case VDRBindingConstants.CHANNEL_UID_AUDIO:
+                            SVDRPAudio svdrpAudio = con.getSVDRPAudio();
+                            updateAudioTrackOptions(svdrpAudio);
+                            result = new DecimalType(svdrpAudio.getActiveTrackNumber());
+                            break;
                         case VDRBindingConstants.CHANNEL_UID_POWER:
                             SVDRPDiskStatus status = con.getDiskStatus();
                             if (status.getPercentUsed() >= 0) {
@@ -229,13 +243,11 @@ public class VDRHandler extends BaseThingHandler {
                             break;
                         case VDRBindingConstants.CHANNEL_UID_CURRENT_EVENT_BEGIN:
                             entry = con.getEpgEvent(SVDRPEpgEvent.TYPE.NOW);
-                            result = new DateTimeType(LocalDateTime.ofInstant(entry.getBegin(), ZoneId.systemDefault())
-                                    .atZone(timeZoneProvider.getTimeZone()));
+                            result = new DateTimeType(entry.getBegin());
                             break;
                         case VDRBindingConstants.CHANNEL_UID_CURRENT_EVENT_END:
                             entry = con.getEpgEvent(SVDRPEpgEvent.TYPE.NOW);
-                            result = new DateTimeType(LocalDateTime.ofInstant(entry.getEnd(), ZoneId.systemDefault())
-                                    .atZone(timeZoneProvider.getTimeZone()));
+                            result = new DateTimeType(entry.getEnd());
                             break;
                         case VDRBindingConstants.CHANNEL_UID_NEXT_EVENT_TITLE:
                             entry = con.getEpgEvent(SVDRPEpgEvent.TYPE.NEXT);
@@ -251,13 +263,11 @@ public class VDRHandler extends BaseThingHandler {
                             break;
                         case VDRBindingConstants.CHANNEL_UID_NEXT_EVENT_BEGIN:
                             entry = con.getEpgEvent(SVDRPEpgEvent.TYPE.NEXT);
-                            result = new DateTimeType(LocalDateTime.ofInstant(entry.getBegin(), ZoneId.systemDefault())
-                                    .atZone(timeZoneProvider.getTimeZone()));
+                            result = new DateTimeType(entry.getBegin());
                             break;
                         case VDRBindingConstants.CHANNEL_UID_NEXT_EVENT_END:
                             entry = con.getEpgEvent(SVDRPEpgEvent.TYPE.NEXT);
-                            result = new DateTimeType(LocalDateTime.ofInstant(entry.getEnd(), ZoneId.systemDefault())
-                                    .atZone(timeZoneProvider.getTimeZone()));
+                            result = new DateTimeType(entry.getEnd());
                             break;
 
                     }
@@ -293,6 +303,21 @@ public class VDRHandler extends BaseThingHandler {
                 logger.trace("Error on VDR Refresh while closing SVDRP Connection for Thing : {} with message {}",
                         this.getThing().getUID(), e.getMessage());
             }
+        }
+    }
+
+    /**
+     * Update Audio state options on Audio Channel
+     */
+    private void updateAudioTrackOptions(SVDRPAudio audio) {
+        if (isLinked(VDRBindingConstants.CHANNEL_UID_AUDIO)) {
+            List<StateOption> options = new ArrayList<>();
+            for (SVDRPAudioTrack track : audio.getAudioTracks()) {
+                options.add(new StateOption(Integer.toString(track.getId()),
+                        String.format("%s (%s)", track.getDescription(), track.getLanguage())));
+            }
+            stateDescriptionProvider.setStateOptions(
+                    new ChannelUID(getThing().getUID(), VDRBindingConstants.CHANNEL_UID_AUDIO), options);
         }
     }
 

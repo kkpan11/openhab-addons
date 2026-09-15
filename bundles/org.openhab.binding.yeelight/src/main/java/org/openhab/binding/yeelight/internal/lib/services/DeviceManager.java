@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -16,6 +16,7 @@ import java.awt.Color;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -29,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
+import org.openhab.binding.yeelight.internal.YeelightBindingConstants;
 import org.openhab.binding.yeelight.internal.lib.device.DeviceBase;
 import org.openhab.binding.yeelight.internal.lib.device.DeviceFactory;
 import org.openhab.binding.yeelight.internal.lib.device.DeviceStatus;
@@ -98,7 +100,7 @@ public class DeviceManager {
                 } finally {
                     stopDiscovery();
                 }
-            }).start();
+            }, "OH-binding-" + YeelightBindingConstants.BINDING_ID + "-DeviceManager").start();
         }
     }
 
@@ -126,7 +128,8 @@ public class DeviceManager {
                     try (MulticastSocket multiSocket = new MulticastSocket(MULTI_CAST_PORT)) {
                         multiSocket.setSoTimeout(TIMEOUT);
                         multiSocket.setNetworkInterface(networkInterface);
-                        multiSocket.joinGroup(multicastAddress);
+                        multiSocket.joinGroup(new InetSocketAddress(multicastAddress, MULTI_CAST_PORT),
+                                networkInterface);
 
                         DatagramPacket dpSend = new DatagramPacket(DISCOVERY_MSG.getBytes(),
                                 DISCOVERY_MSG.getBytes().length, multicastAddress, MULTI_CAST_PORT);

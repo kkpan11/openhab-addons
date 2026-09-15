@@ -5,11 +5,11 @@
 .DS_Store
 .gradle
 *.iml
-npm-debug.log
-.build.log
+*.log
 
 .metadata/
 bin/
+generated/
 target/
 src-gen/
 xtend-gen/

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -16,16 +16,18 @@ import static org.openhab.binding.fsinternetradio.internal.radio.FrontierSilicon
 
 import java.io.IOException;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
 
 /**
  * Class representing an internet radio based on the frontier silicon chipset. Tested with "hama IR110" and Medion
  * MD87180" internet radios.
  *
- * @author Rainer Ostendorf
- * @author Patrick Koenemann
+ * @author Rainer Ostendorf - Initial contribution
+ * @author Patrick Koenemann - improvements
  * @author Mihaela Memova - removed duplicated check for the percent value range
  */
+@NonNullByDefault
 public class FrontierSiliconRadio {
 
     /** The http connection/session used for controlling the radio. */

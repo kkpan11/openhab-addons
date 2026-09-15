@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -31,6 +31,7 @@ import org.openhab.binding.easee.internal.Utils;
 import org.openhab.binding.easee.internal.command.EaseeCommand;
 import org.openhab.binding.easee.internal.command.account.Login;
 import org.openhab.binding.easee.internal.command.account.RefreshToken;
+import org.openhab.binding.easee.internal.config.EaseeConfiguration;
 import org.openhab.binding.easee.internal.handler.EaseeBridgeHandler;
 import org.openhab.binding.easee.internal.handler.StatusHandler;
 import org.openhab.binding.easee.internal.model.ValidationException;
@@ -134,11 +135,6 @@ public class WebInterface implements AtomicReferenceTrait {
             }
 
             switch (status.getHttpCode()) {
-                case BAD_REQUEST:
-                    bridgeStatusHandler.updateStatusInfo(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
-                            msg);
-                    setAuthenticated(false);
-                    break;
                 case OK:
                     String accessToken = Utils.getAsString(jsonObject, JSON_KEY_AUTH_ACCESS_TOKEN);
                     String refreshToken = Utils.getAsString(jsonObject, JSON_KEY_AUTH_REFRESH_TOKEN);
@@ -159,8 +155,8 @@ public class WebInterface implements AtomicReferenceTrait {
                         break;
                     }
                 default:
-                    bridgeStatusHandler.updateStatusInfo(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
-                            msg);
+                    bridgeStatusHandler.updateStatusInfo(ThingStatus.OFFLINE,
+                            Utils.getStatusDetailFromHttpCode(status.getHttpCode()), msg);
                     setAuthenticated(false);
             }
         }
@@ -189,18 +185,20 @@ public class WebInterface implements AtomicReferenceTrait {
         @Override
         public void run() {
             logger.debug("run queued commands, queue size is {}", commandQueue.size());
-            if (!isAuthenticated()) {
-                authenticate();
-            } else {
-                refreshAccessToken();
+            // catch all exceptions here: the executor is scheduled with a fixed delay, an uncaught exception would
+            // silently cancel the job and the binding would never recover.
+            try {
+                if (!isAuthenticated()) {
+                    authenticate();
+                } else {
+                    refreshAccessToken();
 
-                if (isAuthenticated() && !commandQueue.isEmpty()) {
-                    try {
+                    if (isAuthenticated() && !commandQueue.isEmpty()) {
                         executeCommand();
-                    } catch (Exception ex) {
-                        logger.warn("command execution ended with exception:", ex);
                     }
                 }
+            } catch (Exception ex) {
+                logger.warn("command execution ended with exception:", ex);
             }
         }
 
@@ -269,9 +267,10 @@ public class WebInterface implements AtomicReferenceTrait {
     }
 
     public void start() {
+        EaseeConfiguration config = handler.getBridgeConfiguration();
         setAuthenticated(false);
         updateJobReference(requestExecutorJobReference, scheduler.scheduleWithFixedDelay(requestExecutor,
-                WEB_REQUEST_INITIAL_DELAY, WEB_REQUEST_INTERVAL, TimeUnit.SECONDS));
+                config.getWebRequestInitialDelay(), config.getWebRequestInterval(), TimeUnit.SECONDS));
     }
 
     /**

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -178,15 +178,20 @@ public class RemoteControllerWebSocket extends RemoteController implements Liste
 
         this.samsungTvAppWatchService = new SamsungTvAppWatchService(host, this);
 
-        SslContextFactory sslContextFactory = new SslContextFactory.Client( /* trustall= */ true);
-        /* remove extra filters added by jetty on cipher suites */
-        sslContextFactory.setExcludeCipherSuites();
-        client = webSocketFactory.createWebSocketClient("samsungtv", sslContextFactory);
+        client = callback.getLegacyCipherSuites()
+                ? webSocketFactory.createWebSocketClient("samsungtv", legacyCipherSuiteFactory())
+                : webSocketFactory.createWebSocketClient("samsungtv");
         client.addLifeCycleListener(this);
 
         webSocketRemote = new WebSocketRemote(this);
         webSocketArt = new WebSocketArt(this);
         webSocketV2 = new WebSocketV2(this);
+    }
+
+    private static SslContextFactory legacyCipherSuiteFactory() {
+        SslContextFactory sslContextFactory = new SslContextFactory.Client( /* trustall= */ true);
+        sslContextFactory.setExcludeCipherSuites();
+        return sslContextFactory;
     }
 
     public boolean isConnected() {
@@ -228,8 +233,8 @@ public class RemoteControllerWebSocket extends RemoteController implements Liste
         String encodedAppName = Utils.b64encode(appName);
 
         String protocol = PROTOCOL_SECUREWEBSOCKET.equals(callback.handler.configuration.getProtocol()) ? "wss" : "ws";
+        String token = callback.handler.configuration.getWebsocketToken();
         try {
-            String token = callback.handler.configuration.getWebsocketToken();
             if ("wss".equals(protocol) && token.isBlank()) {
                 logger.warn(
                         "{}: WebSocketRemote connecting without Token, please accept the connection on the TV within 30 seconds",
@@ -242,13 +247,15 @@ public class RemoteControllerWebSocket extends RemoteController implements Liste
         }
 
         try {
-            webSocketArt.connect(new URI(protocol, null, host, port, WS_ENDPOINT_ART, "name=" + encodedAppName, null));
+            webSocketArt.connect(new URI(protocol, null, host, port, WS_ENDPOINT_ART,
+                    "name=" + encodedAppName + (token.isBlank() ? "" : "&token=" + token), null));
         } catch (RemoteControllerException | URISyntaxException e) {
             logResult("Problem connecting to artmode websocket", e);
         }
 
         try {
-            webSocketV2.connect(new URI(protocol, null, host, port, WS_ENDPOINT_V2, "name=" + encodedAppName, null));
+            webSocketV2.connect(new URI(protocol, null, host, port, WS_ENDPOINT_V2,
+                    "name=" + encodedAppName + (token.isBlank() ? "" : "&token=" + token), null));
         } catch (RemoteControllerException | URISyntaxException e) {
             logResult("Problem connecting to V2 websocket", e);
         }

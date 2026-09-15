@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,6 +12,7 @@
  */
 package org.openhab.binding.netatmo.internal.api.dto;
 
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -37,7 +38,16 @@ public class HomeEvent extends Event {
     public class NAEventsDataResponse extends ApiResponse<BodyResponse<Home>> {
     }
 
-    private record Snapshot(String url, ZonedDateTime expiresAt) {
+    private record Snapshot(@Nullable String url, @Nullable Instant expiresAt) {
+        public @Nullable String url() {
+            Instant expires = expiresAt;
+            // If no expiration data provided or later than now: it is available
+            if (expires == null || expires.isAfter(Instant.now())) {
+                return url;
+            }
+            // Consider it as not available, so do not provide the url
+            return null;
+        }
     }
 
     private ZonedDateTime time = ZonedDateTime.now();
@@ -109,5 +119,10 @@ public class HomeEvent extends Event {
 
     private @Nullable String internalGetUrl(@Nullable Snapshot image) {
         return image == null ? null : image.url();
+    }
+
+    @Override
+    public boolean isIgnoredForThingUpdate() {
+        return true;
     }
 }

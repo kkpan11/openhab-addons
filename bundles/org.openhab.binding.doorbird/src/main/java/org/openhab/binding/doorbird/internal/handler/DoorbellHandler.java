@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -43,9 +43,9 @@ import org.openhab.binding.doorbird.internal.api.SipStatus;
 import org.openhab.binding.doorbird.internal.audio.DoorbirdAudioSink;
 import org.openhab.binding.doorbird.internal.config.DoorbellConfiguration;
 import org.openhab.binding.doorbird.internal.listener.DoorbirdUdpListener;
+import org.openhab.binding.doorbird.internal.servlet.DoorbirdHTTPServlet;
 import org.openhab.core.audio.AudioSink;
 import org.openhab.core.common.ThreadPoolManager;
-import org.openhab.core.i18n.TimeZoneProvider;
 import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
@@ -101,15 +101,15 @@ public class DoorbellHandler extends BaseThingHandler {
 
     private @Nullable ServiceRegistration<AudioSink> audioSinkRegistration;
 
-    private final TimeZoneProvider timeZoneProvider;
     private final HttpClient httpClient;
+    private final DoorbirdHTTPServlet callbackServlet;
 
-    public DoorbellHandler(Thing thing, TimeZoneProvider timeZoneProvider, HttpClient httpClient,
-            BundleContext bundleContext) {
+    public DoorbellHandler(Thing thing, HttpClient httpClient, BundleContext bundleContext,
+            DoorbirdHTTPServlet callbackServlet) {
         super(thing);
-        this.timeZoneProvider = timeZoneProvider;
         this.httpClient = httpClient;
         this.bundleContext = bundleContext;
+        this.callbackServlet = callbackServlet;
         udpListener = new DoorbirdUdpListener(this);
     }
 
@@ -137,11 +137,19 @@ public class DoorbellHandler extends BaseThingHandler {
         startImageRefreshJob();
         startUDPListenerJob();
         startAudioSink();
+
+        callbackServlet.registerHandler(thing.getUID(), this);
+        String thingUid = thing.getUID().getAsString();
+        logger.info("Doorbird webhook URLs configured for device {}:", thingUid);
+        logger.info("  Doorbell event: /doorbird/{}/doorbell", thingUid);
+        logger.info("  Motion event:   /doorbird/{}/motion", thingUid);
+
         updateStatus(ThingStatus.ONLINE);
     }
 
     @Override
     public void dispose() {
+        callbackServlet.unregisterHandler(thing.getUID());
         stopUDPListenerJob();
         stopImageRefreshJob();
         stopDoorbellOffJob();
@@ -582,6 +590,6 @@ public class DoorbellHandler extends BaseThingHandler {
     }
 
     private DateTimeType getLocalDateTimeType(long dateTimeSeconds) {
-        return new DateTimeType(Instant.ofEpochSecond(dateTimeSeconds).atZone(timeZoneProvider.getTimeZone()));
+        return new DateTimeType(Instant.ofEpochSecond(dateTimeSeconds));
     }
 }

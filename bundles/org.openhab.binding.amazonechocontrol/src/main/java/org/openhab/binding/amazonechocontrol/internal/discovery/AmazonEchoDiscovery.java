@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -14,26 +14,30 @@ package org.openhab.binding.amazonechocontrol.internal.discovery;
 
 import static org.openhab.binding.amazonechocontrol.internal.AmazonEchoControlBindingConstants.*;
 
+import java.time.Instant;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
-import org.openhab.binding.amazonechocontrol.internal.Connection;
+import org.openhab.binding.amazonechocontrol.internal.connection.Connection;
+import org.openhab.binding.amazonechocontrol.internal.dto.DeviceTO;
+import org.openhab.binding.amazonechocontrol.internal.dto.EnabledFeedTO;
 import org.openhab.binding.amazonechocontrol.internal.handler.AccountHandler;
-import org.openhab.binding.amazonechocontrol.internal.jsons.JsonDevices.Device;
-import org.openhab.core.config.discovery.AbstractDiscoveryService;
+import org.openhab.core.config.discovery.AbstractThingHandlerDiscoveryService;
 import org.openhab.core.config.discovery.DiscoveryResult;
 import org.openhab.core.config.discovery.DiscoveryResultBuilder;
+import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingTypeUID;
 import org.openhab.core.thing.ThingUID;
-import org.osgi.service.component.annotations.Activate;
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.ServiceScope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,68 +46,58 @@ import org.slf4j.LoggerFactory;
  * the amazon account specified in the binding.
  *
  * @author Michael Geramb - Initial contribution
+ * @author Jan N. Klug - Refactored to ThingHandlerService
  */
+@Component(scope = ServiceScope.PROTOTYPE, service = AmazonEchoDiscovery.class)
 @NonNullByDefault
-public class AmazonEchoDiscovery extends AbstractDiscoveryService {
-
-    AccountHandler accountHandler;
+public class AmazonEchoDiscovery extends AbstractThingHandlerDiscoveryService<AccountHandler> {
+    private static final int BACKGROUND_INTERVAL = 10; // in seconds
     private final Logger logger = LoggerFactory.getLogger(AmazonEchoDiscovery.class);
-    private final Set<String> discoveredFlashBriefings = new HashSet<>();
+    private final Set<List<EnabledFeedTO>> discoveredFlashBriefings = new HashSet<>();
 
     private @Nullable ScheduledFuture<?> startScanStateJob;
-    private @Nullable Long activateTimeStamp;
+    private @Nullable Instant activateTimeStamp;
 
-    public AmazonEchoDiscovery(AccountHandler accountHandler) {
-        super(SUPPORTED_ECHO_THING_TYPES_UIDS, 10);
-        this.accountHandler = accountHandler;
-    }
-
-    public void activate() {
-        activate(new HashMap<>());
-    }
-
-    @Override
-    public void deactivate() {
-        super.deactivate();
+    public AmazonEchoDiscovery() {
+        super(AccountHandler.class, SUPPORTED_ECHO_THING_TYPES_UIDS, 5);
     }
 
     @Override
     protected void startScan() {
         stopScanJob();
-        final Long activateTimeStamp = this.activateTimeStamp;
+        final Instant activateTimeStamp = this.activateTimeStamp;
         if (activateTimeStamp != null) {
             removeOlderResults(activateTimeStamp);
         }
-        setDevices(accountHandler.updateDeviceList());
+        Connection connection = thingHandler.getConnection();
+        List<DeviceTO> devices = thingHandler.updateDeviceList();
+        addMacAddresses(devices, connection);
+        setDevices(devices);
 
-        String currentFlashBriefingConfiguration = accountHandler.getNewCurrentFlashbriefingConfiguration();
+        List<EnabledFeedTO> currentFlashBriefingConfiguration = thingHandler.updateFlashBriefingHandlers();
         discoverFlashBriefingProfiles(currentFlashBriefingConfiguration);
     }
 
     protected void startAutomaticScan() {
-        if (!this.accountHandler.getThing().getThings().isEmpty()) {
+        if (!thingHandler.getThing().getThings().isEmpty()) {
             stopScanJob();
             return;
         }
-        Connection connection = this.accountHandler.findConnection();
-        if (connection == null) {
+        Connection connection = thingHandler.getConnection();
+        // do discovery only if logged in and last login is more than 10 s ago
+        Date verifyTime = connection.getVerifyTime();
+        if (verifyTime == null || System.currentTimeMillis() < (verifyTime.getTime() + 10000)) {
             return;
         }
-        Date verifyTime = connection.tryGetVerifyTime();
-        if (verifyTime == null) {
-            return;
-        }
-        if (new Date().getTime() - verifyTime.getTime() < 10000) {
-            return;
-        }
+
         startScan();
     }
 
     @Override
     protected void startBackgroundDiscovery() {
         stopScanJob();
-        startScanStateJob = scheduler.scheduleWithFixedDelay(this::startAutomaticScan, 3000, 1000,
-                TimeUnit.MILLISECONDS);
+        startScanStateJob = scheduler.scheduleWithFixedDelay(this::startAutomaticScan, BACKGROUND_INTERVAL,
+                BACKGROUND_INTERVAL, TimeUnit.SECONDS);
     }
 
     @Override
@@ -121,45 +115,37 @@ public class AmazonEchoDiscovery extends AbstractDiscoveryService {
     }
 
     @Override
-    @Activate
-    public void activate(@Nullable Map<String, Object> config) {
-        super.activate(config);
-        if (config != null) {
-            modified(config);
-        }
+    public void initialize() {
         if (activateTimeStamp == null) {
-            activateTimeStamp = new Date().getTime();
+            activateTimeStamp = Instant.now();
         }
+        super.initialize();
     }
 
-    synchronized void setDevices(List<Device> deviceList) {
-        for (Device device : deviceList) {
+    private synchronized void setDevices(List<DeviceTO> deviceList) {
+        for (DeviceTO device : deviceList) {
             String serialNumber = device.serialNumber;
             if (serialNumber != null) {
                 String deviceFamily = device.deviceFamily;
                 if (deviceFamily != null) {
-                    ThingTypeUID thingTypeId;
-                    if ("ECHO".equals(deviceFamily)) {
-                        thingTypeId = THING_TYPE_ECHO;
-                    } else if ("ROOK".equals(deviceFamily)) {
-                        thingTypeId = THING_TYPE_ECHO_SPOT;
-                    } else if ("KNIGHT".equals(deviceFamily)) {
-                        thingTypeId = THING_TYPE_ECHO_SHOW;
-                    } else if ("WHA".equals(deviceFamily)) {
-                        thingTypeId = THING_TYPE_ECHO_WHA;
-                    } else {
+                    ThingTypeUID thingTypeId = getThingTypeId(deviceFamily);
+                    if (thingTypeId == null) {
                         logger.debug("Unknown thing type '{}'", deviceFamily);
                         continue;
                     }
 
-                    ThingUID bridgeThingUID = this.accountHandler.getThing().getUID();
+                    ThingUID bridgeThingUID = thingHandler.getThing().getUID();
                     ThingUID thingUID = new ThingUID(thingTypeId, bridgeThingUID, serialNumber);
 
-                    DiscoveryResult result = DiscoveryResultBuilder.create(thingUID).withLabel(device.accountName)
-                            .withProperty(DEVICE_PROPERTY_SERIAL_NUMBER, serialNumber)
+                    DiscoveryResultBuilder resultBuilder = DiscoveryResultBuilder.create(thingUID)
+                            .withLabel(device.accountName).withProperty(DEVICE_PROPERTY_SERIAL_NUMBER, serialNumber)
                             .withProperty(DEVICE_PROPERTY_FAMILY, deviceFamily)
-                            .withRepresentationProperty(DEVICE_PROPERTY_SERIAL_NUMBER).withBridge(bridgeThingUID)
-                            .build();
+                            .withProperty(DEVICE_PROPERTY_DEVICE_TYPE_ID,
+                                    Objects.requireNonNullElse(device.deviceType, "<unknown>"))
+                            .withRepresentationProperty(DEVICE_PROPERTY_SERIAL_NUMBER).withBridge(bridgeThingUID);
+
+                    addMacAddressProperty(resultBuilder, device.macAddress);
+                    DiscoveryResult result = resultBuilder.build();
 
                     logger.debug("Device [{}: {}] found. Mapped to thing type {}", device.deviceFamily, serialNumber,
                             thingTypeId.getAsString());
@@ -170,27 +156,65 @@ public class AmazonEchoDiscovery extends AbstractDiscoveryService {
         }
     }
 
-    public synchronized void discoverFlashBriefingProfiles(String currentFlashBriefingJson) {
-        if (currentFlashBriefingJson.isEmpty()) {
-            return;
+    static void addMacAddresses(List<DeviceTO> devices, Connection connection) {
+        devices.forEach(device -> {
+            if (device.macAddress == null && getThingTypeId(device.deviceFamily) != null) {
+                device.macAddress = connection.getDeviceMacAddress(device);
+            }
+        });
+    }
+
+    private static @Nullable ThingTypeUID getThingTypeId(@Nullable String deviceFamily) {
+        if (deviceFamily == null) {
+            return null;
         }
 
-        if (!discoveredFlashBriefings.contains(currentFlashBriefingJson)) {
-            ThingUID bridgeThingUID = this.accountHandler.getThing().getUID();
-            ThingUID freeThingUID = new ThingUID(THING_TYPE_FLASH_BRIEFING_PROFILE, bridgeThingUID,
-                    Integer.toString(currentFlashBriefingJson.hashCode()));
-            DiscoveryResult result = DiscoveryResultBuilder.create(freeThingUID).withLabel("FlashBriefing")
-                    .withProperty(DEVICE_PROPERTY_FLASH_BRIEFING_PROFILE, currentFlashBriefingJson)
-                    .withBridge(accountHandler.getThing().getUID()).build();
-            logger.debug("Flash Briefing {} discovered", currentFlashBriefingJson);
-            thingDiscovered(result);
-            discoveredFlashBriefings.add(currentFlashBriefingJson);
+        return switch (deviceFamily) {
+            case "ECHO" -> THING_TYPE_ECHO;
+            case "ROOK" -> THING_TYPE_ECHO_SPOT;
+            case "KNIGHT" -> THING_TYPE_ECHO_SHOW;
+            case "WHA" -> THING_TYPE_ECHO_WHA;
+            default -> null;
+        };
+    }
+
+    static void addMacAddressProperty(DiscoveryResultBuilder resultBuilder, @Nullable String macAddress) {
+        String normalizedMacAddress = normalizeMacAddress(macAddress);
+        if (!normalizedMacAddress.isEmpty()) {
+            resultBuilder.withProperty(Thing.PROPERTY_MAC_ADDRESS, normalizedMacAddress);
         }
     }
 
-    public synchronized void removeExistingFlashBriefingProfile(@Nullable String currentFlashBriefingJson) {
-        if (currentFlashBriefingJson != null) {
-            discoveredFlashBriefings.remove(currentFlashBriefingJson);
+    private static String normalizeMacAddress(@Nullable String macAddress) {
+        if (macAddress == null) {
+            return "";
+        }
+
+        String hex = macAddress.replace(":", "").replace("-", "").trim();
+        if (!hex.matches("(?i)[0-9a-f]{12}") || "000000000000".equals(hex)) {
+            return "";
+        }
+
+        String normalized = hex.toLowerCase(Locale.ROOT);
+        return String.join(":", normalized.substring(0, 2), normalized.substring(2, 4), normalized.substring(4, 6),
+                normalized.substring(6, 8), normalized.substring(8, 10), normalized.substring(10, 12));
+    }
+
+    private synchronized void discoverFlashBriefingProfiles(List<EnabledFeedTO> enabledFeeds) {
+        if (enabledFeeds.isEmpty()) {
+            return;
+        }
+
+        if (!discoveredFlashBriefings.contains(enabledFeeds)) {
+            ThingUID bridgeThingUID = thingHandler.getThing().getUID();
+            ThingUID freeThingUID = new ThingUID(THING_TYPE_FLASH_BRIEFING_PROFILE, bridgeThingUID,
+                    Integer.toString(enabledFeeds.hashCode()));
+            DiscoveryResult result = DiscoveryResultBuilder.create(freeThingUID).withLabel("FlashBriefing")
+                    .withProperty(DEVICE_PROPERTY_FLASH_BRIEFING_PROFILE, enabledFeeds)
+                    .withBridge(thingHandler.getThing().getUID()).build();
+            logger.debug("Flash Briefing {} discovered", enabledFeeds);
+            thingDiscovered(result);
+            discoveredFlashBriefings.add(enabledFeeds);
         }
     }
 }

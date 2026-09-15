@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -34,6 +34,7 @@ import org.openhab.binding.netatmo.internal.api.dto.WebhookEvent;
 import org.openhab.binding.netatmo.internal.handler.CommonInterface;
 import org.openhab.binding.netatmo.internal.handler.channelhelper.ChannelHelper;
 import org.openhab.binding.netatmo.internal.providers.NetatmoDescriptionProvider;
+import org.openhab.binding.netatmo.internal.utils.ChannelTypeUtils;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.types.Command;
@@ -79,13 +80,10 @@ public class PersonCapability extends HomeSecurityThingCapability {
     protected void updateWebhookEvent(WebhookEvent event) {
         super.updateWebhookEvent(event);
 
-        handler.updateState(GROUP_LAST_EVENT, CHANNEL_EVENT_SUBTYPE,
-                Objects.requireNonNull(event.getSubTypeDescription().map(d -> toStringType(d)).orElse(UnDefType.NULL)));
+        handler.updateState(GROUP_LAST_EVENT, CHANNEL_EVENT_SUBTYPE, Objects.requireNonNull(
+                event.getSubTypeDescription().map(ChannelTypeUtils::toStringType).orElse(UnDefType.NULL)));
 
-        final String message = event.getName();
-        handler.updateState(GROUP_LAST_EVENT, CHANNEL_EVENT_MESSAGE,
-                message == null || message.isBlank() ? UnDefType.NULL : toStringType(message));
-
+        handler.updateState(GROUP_LAST_EVENT, CHANNEL_EVENT_MESSAGE, toStringType(event.getName()));
         handler.updateState(GROUP_LAST_EVENT, CHANNEL_EVENT_TIME, toDateTimeType(event.getTime()));
         handler.updateState(GROUP_LAST_EVENT, CHANNEL_EVENT_SNAPSHOT, toRawType(event.getSnapshotUrl()));
         handler.updateState(cameraChannelUID, toStringType(event.getCameraId()));
@@ -101,19 +99,21 @@ public class PersonCapability extends HomeSecurityThingCapability {
             return; // ignore incoming events if they are deprecated
         }
         lastEventTime = eventTime;
-        handler.triggerChannel(CHANNEL_HOME_EVENT, Objects.requireNonNull(
+        handler.triggerChannel(GROUP_SECURITY_EVENT, CHANNEL_HOME_EVENT, Objects.requireNonNull(
                 event.getSubTypeDescription().map(EventSubType::name).orElse(event.getEventType().name())));
     }
 
     @Override
     public List<NAObject> updateReadings() {
         List<NAObject> result = new ArrayList<>();
-        getSecurityCapability().ifPresent(cap -> {
-            HomeEvent event = cap.getLastPersonEvent(handler.getId());
-            if (event != null) {
-                result.add(event);
-            }
-        });
+        if (pullMode()) {
+            getSecurityCapability().ifPresent(cap -> {
+                HomeEvent event = cap.getLastPersonEvent(handler.getId());
+                if (event != null) {
+                    result.add(event);
+                }
+            });
+        }
         return result;
     }
 }

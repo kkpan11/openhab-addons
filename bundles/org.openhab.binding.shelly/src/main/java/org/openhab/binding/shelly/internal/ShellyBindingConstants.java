@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,12 +12,7 @@
  */
 package org.openhab.binding.shelly.internal;
 
-import static org.openhab.binding.shelly.internal.discovery.ShellyThingCreator.*;
-
-import java.util.Set;
-
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.openhab.core.thing.ThingTypeUID;
 
 /**
  * The {@link ShellyBindingConstants} class defines common constants, which are
@@ -31,86 +26,6 @@ public class ShellyBindingConstants {
     public static final String VENDOR = "Shelly";
     public static final String BINDING_ID = "shelly";
     public static final String SYSTEM_ID = "system";
-
-    public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Set.of(THING_TYPE_SHELLY1, //
-            THING_TYPE_SHELLY1L, //
-            THING_TYPE_SHELLY1PM, //
-            THING_TYPE_SHELLYEM, //
-            THING_TYPE_SHELLY3EM, //
-            THING_TYPE_SHELLY2_RELAY, //
-            THING_TYPE_SHELLY2_ROLLER, //
-            THING_TYPE_SHELLY25_RELAY, //
-            THING_TYPE_SHELLY25_ROLLER, //
-            THING_TYPE_SHELLY4PRO, //
-            THING_TYPE_SHELLYPLUG, //
-            THING_TYPE_SHELLYPLUGS, //
-            THING_TYPE_SHELLYPLUGU1, //
-            THING_TYPE_SHELLYUNI, //
-            THING_TYPE_SHELLYDIMMER, //
-            THING_TYPE_SHELLYDIMMER2, //
-            THING_TYPE_SHELLYIX3, //
-            THING_TYPE_SHELLYBULB, //
-            THING_TYPE_SHELLYDUO, //
-            THING_TYPE_SHELLYVINTAGE, //
-            THING_TYPE_SHELLYDUORGBW, //
-            THING_TYPE_SHELLYRGBW2_COLOR, //
-            THING_TYPE_SHELLYRGBW2_WHITE, //
-            THING_TYPE_SHELLYHT, //
-            THING_TYPE_SHELLYTRV, //
-            THING_TYPE_SHELLYSENSE, //
-            THING_TYPE_SHELLYEYE, //
-            THING_TYPE_SHELLYSMOKE, //
-            THING_TYPE_SHELLYGAS, //
-            THING_TYPE_SHELLYFLOOD, //
-            THING_TYPE_SHELLYDOORWIN, //
-            THING_TYPE_SHELLYDOORWIN2, //
-            THING_TYPE_SHELLYBUTTON1, //
-            THING_TYPE_SHELLYBUTTON2, //
-            THING_TYPE_SHELLMOTION, //
-
-            // Shelly Plus
-            THING_TYPE_SHELLYPLUS1, //
-            THING_TYPE_SHELLYPLUS1PM, //
-            THING_TYPE_SHELLYPLUS2PM_RELAY, //
-            THING_TYPE_SHELLYPLUS2PM_ROLLER, //
-            THING_TYPE_SHELLYPLUSI4, //
-            THING_TYPE_SHELLYPLUSI4DC, //
-            THING_TYPE_SHELLYPLUSDIMMER10V, //
-            THING_TYPE_SHELLYPLUSHT, //
-            THING_TYPE_SHELLYPLUSHTG3, //
-            THING_TYPE_SHELLYPLUSSMOKE, //
-            THING_TYPE_SHELLYPLUSPLUGS, //
-            THING_TYPE_SHELLYPLUSPLUGUS, //
-            THING_TYPE_SHELLYPLUSDIMMERUS, //
-
-            // Shelly Wall Display
-            THING_TYPE_SHELLYPLUSWALLDISPLAY, //
-
-            // Shelly Plus Mini
-            THING_TYPE_SHELLY1MINI, //
-            THING_TYPE_SHELLYPMMINI, //
-            THING_TYPE_SHELLY1PMMINI, //
-
-            // Shelly Pro
-            THING_TYPE_SHELLYPRO1, //
-            THING_TYPE_SHELLYPRO1PM, //
-            THING_TYPE_SHELLYPRO2_RELAY, //
-            THING_TYPE_SHELLYPRO2PM_RELAY, //
-            THING_TYPE_SHELLYPRO2PM_ROLLER, //
-            THING_TYPE_SHELLYPRO3, //
-            THING_TYPE_SHELLYPRO3EM, //
-            THING_TYPE_SHELLYPROEM50, //
-            THING_TYPE_SHELLYPRO4PM, //
-
-            // Shelly BLU
-            THING_TYPE_SHELLYBLUBUTTON, //
-            THING_TYPE_SHELLYBLUDW, //
-            THING_TYPE_SHELLYBLUMOTION, //
-            THING_TYPE_SHELLYBLUHT, //
-            THING_TYPE_SHELLYBLUGW, //
-
-            THING_TYPE_SHELLYPROTECTED, //
-            THING_TYPE_SHELLYUNKNOWN);
 
     // Thing Configuration Properties
     public static final String CONFIG_DEVICEIP = "deviceIp";
@@ -126,6 +41,7 @@ public class ShellyBindingConstants {
     public static final String PROPERTY_DEV_GEN = "deviceGeneration";
     public static final String PROPERTY_DEV_AUTH = "deviceAuth";
     public static final String PROPERTY_GW_DEVICE = "gatewayDevice";
+    public static final String PROPERTY_ADDON_FIRMWARE = "addonFirmware";
     public static final String PROPERTY_HWREV = "deviceHwRev";
     public static final String PROPERTY_HWBATCH = "deviceHwBatch";
     public static final String PROPERTY_UPDATE_PERIOD = "devUpdatePeriod";
@@ -141,6 +57,28 @@ public class ShellyBindingConstants {
     public static final String PROPERTY_COAP_DESCR = "coapDeviceDescr";
     public static final String PROPERTY_COAP_VERSION = "coapVersion";
     public static final String PROPERTY_COIOTAUTO = "coiotAutoEnable";
+    public static final String PROPERTY_CHANNEL_SCHEMA_VERSION = "channelSchemaVersion";
+
+    /*
+     * Channel Groups Used at Runtime
+     *
+     * CHANNEL_GROUP_DEV_STATUS device Firmware, uptime, WiFi, heartbeat
+     * CHANNEL_GROUP_RELAY_CONTROL relay1..n Relay output, input, timers
+     * CHANNEL_GROUP_ROL_CONTROL roller Rollershutter, position, safety
+     * CHANNEL_GROUP_DIMMER_CONTROL dimmer Brightness
+     * CHANNEL_GROUP_LIGHT_CONTROL control Light power, color mode, timers
+     * CHANNEL_GROUP_COLOR_CONTROL color HSB, RGBW values
+     * CHANNEL_GROUP_WHITE_CONTROL white White brightness and temperature
+     * CHANNEL_GROUP_LIGHT_CHANNEL channel1..n RGBW2 individual white channels (deprecated, see light1..n)
+     * CHANNEL_GROUP_LIGHT_INDEX light1..n RGBW2/RGBW PM individual white channels
+     * CHANNEL_GROUP_METER meter1..n Watts, kWh, voltage, current
+     * CHANNEL_GROUP_NMETER nmeter 3EM neutral current
+     * CHANNEL_GROUP_SENSOR sensors All environmental readings
+     * CHANNEL_GROUP_BATTERY battery Level, low-battery flag
+     * CHANNEL_GROUP_CONTROL control TRV mode, setpoint, boost
+     * CHANNEL_GROUP_STATUS status1..n Button/input events
+     *
+     */
 
     // Relay
     public static final String CHANNEL_GROUP_RELAY_CONTROL = "relay";
@@ -171,20 +109,32 @@ public class ShellyBindingConstants {
     // Power meter
     public static final String CHANNEL_GROUP_METER = "meter";
     public static final String CHANNEL_METER_CURRENTWATTS = "currentWatts";
+    public static final String CHANNEL_METER_CURRENTPOWER = "currentPower";
     public static final String CHANNEL_METER_LASTMIN = "lastPower";
-    public static final String CHANNEL_METER_LASTMIN1 = CHANNEL_METER_LASTMIN + "1";
+    public static final String CHANNEL_METER_LASTMIN1 = CHANNEL_METER_LASTMIN + "1"; // deprecated, use ENERGYHISTMIN1
+    public static final String CHANNEL_METER_ENERGYHISTMIN1 = "energyHistMin1"; // energy of the previous minute
+    public static final String CHANNEL_METER_ENERGYHISTMIN2 = "energyHistMin2"; // energy 2 minutes ago
+    public static final String CHANNEL_METER_ENERGYHISTMIN3 = "energyHistMin3"; // energy 3 minutes ago
+    // average of energyHistMin1/2/3 (Wh/minute), i.e. NOT a raw by_minute[] sample like the channels above
+    public static final String CHANNEL_METER_ENERGYAVGLAST3MIN = "energyAvgLast3Min";
     public static final String CHANNEL_METER_TOTALKWH = "totalKWH";
+    public static final String CHANNEL_METER_TOTALENERGY = "totalEnergy";
     public static final String CHANNEL_EMETER_TOTALRET = "returnedKWH";
-    public static final String CHANNEL_EMETER_REACTWATTS = "reactiveWatts";
+    public static final String CHANNEL_EMETER_RETURNEDENERGY = "returnedEnergy";
+    public static final String CHANNEL_EMETER_REACTWATTS = "reactiveWatts"; // deprecated, use CHANNEL_EMETER_REACTPOWER
+    public static final String CHANNEL_EMETER_REACTPOWER = "reactivePower";
+    public static final String CHANNEL_EMETER_APPARENT = "apparentPower";
     public static final String CHANNEL_EMETER_VOLTAGE = "voltage";
     public static final String CHANNEL_EMETER_CURRENT = "current";
+    public static final String CHANNEL_EMETER_FREQUENCY = "frequency";
     public static final String CHANNEL_EMETER_PFACTOR = "powerFactor";
-    public static final String CHANNEL_EMETER_RESETTOTAL = "resetTotals";
+    public static final String CHANNEL_EMETER_RESETTOTAL = "resetTotals"; // meterN group (switch/pm1/em1 devices)
     public static final String CHANNEL_GROUP_NMETER = "nmeter";
     public static final String CHANNEL_NMETER_CURRENT = "ncurrent";
     public static final String CHANNEL_NMETER_IXSUM = "ixsum";
     public static final String CHANNEL_NMETER_MISMATCH = "nmismatch";
-    public static final String CHANNEL_NMETER_MTRESHHOLD = "nmTreshhold";
+    public static final String CHANNEL_NMETER_MTRESHHOLD = "nmTreshhold"; // deprecated, use CHANNEL_NMETER_THRESHOLD
+    public static final String CHANNEL_NMETER_THRESHOLD = "nmThreshold";
 
     public static final String CHANNEL_GROUP_SENSOR = "sensors";
     public static final String CHANNEL_SENSOR_TEMP = "temperature";
@@ -197,7 +147,7 @@ public class ShellyBindingConstants {
     public static final String CHANNEL_SENSOR_TILT = "tilt";
     public static final String CHANNEL_SENSOR_FLOOD = "flood";
     public static final String CHANNEL_SENSOR_SMOKE = "smoke";
-    public static final String CHANNEL_SENSOR_MUTE = "mute";
+    public static final String CHANNEL_SENSOR_MUTE = "mute"; // Smoke, Flood Gen4
     public static final String CHANNEL_SENSOR_STATE = "state";
     public static final String CHANNEL_SENSOR_VALVE = "valve";
     public static final String CHANNEL_SENSOR_SSTATE = "status"; // Shelly Gas
@@ -207,15 +157,37 @@ public class ShellyBindingConstants {
     public static final String CHANNEL_SENSOR_SLEEPTIME = "sensorSleepTime";
     public static final String CHANNEL_SENSOR_ALARM_STATE = "alarmState";
     public static final String CHANNEL_SENSOR_ERROR = "lastError";
+    public static final String CHANNEL_SENSOR_ROTATIONX = "rotationX"; // BLU Remote
+    public static final String CHANNEL_SENSOR_ROTATIONY = "rotationY"; // BLU Remote
+    public static final String CHANNEL_SENSOR_ROTATIONZ = "rotationZ"; // BLU Remote
+    public static final String CHANNEL_SENSOR_CHANNEL = "channel"; // BLU Remote
+    public static final String CHANNEL_SENSOR_STEPS = "steps"; // BLU Remote
+    public static final String CHANNEL_SENSOR_PRESENCE = "presence"; // Shelly Presence: zone occupancy (ON=detected)
+    public static final String CHANNEL_SENSOR_OBJECT_COUNT = "objectCount"; // Shelly Presence: objects in zone
+    public static final String CHANNEL_SENSOR_DIRECTION = "direction"; // BLU Remote
+    public static final String CHANNEL_SENSOR_DISTANCE = "distance"; // BLU DIstance
+    public static final String CHANNEL_SENSOR_RAINST = "rainStatus"; // BLU Weather
+    public static final String CHANNEL_SENSOR_WINDSP = "windSpeed"; // BLU Weather
+    public static final String CHANNEL_SENSOR_WINDDIR = "windDirection"; // BLU Weather
+    public static final String CHANNEL_SENSOR_GUSTSP = "gustSpeed"; // BLU Weather
+    public static final String CHANNEL_SENSOR_UV = "uvIndex"; // BLU Weather
+    public static final String CHANNEL_SENSOR_PRESSURE = "pressure"; // BLU Weather
+    public static final String CHANNEL_SENSOR_DEWPOINT = "dewPoint"; // BLU Weather
+    public static final String CHANNEL_SENSOR_PRECIPITATION = "precipitation"; // BLU Weather
+    public static final String CHANNEL_SENSOR_WINDDIR_STR = "windDirectionStr"; // BLU Weather
+    public static final String CHANNEL_SENSOR_APPARENT_TEMP = "apparentTemp"; // BLU Weather
+    public static final String CHANNEL_SENSOR_SEALEVEL_PRESSURE = "seaLevelPressure"; // BLU Weather
 
-    // TRV
-    public static final String CHANNEL_CONTROL_SETTEMP = "targetTemp";
-    public static final String CHANNEL_CONTROL_POSITION = "position";
-    public static final String CHANNEL_CONTROL_MODE = "mode";
-    public static final String CHANNEL_CONTROL_BCONTROL = "boost";
-    public static final String CHANNEL_CONTROL_BTIMER = "boostTimer";
-    public static final String CHANNEL_CONTROL_SCHEDULE = "schedule";
-    public static final String CHANNEL_CONTROL_PROFILE = "selectedProfile";
+    // Control channels
+    public static final String CHANNEL_CONTROL_SETTEMP = "targetTemp"; // TRV
+    public static final String CHANNEL_CONTROL_POSITION = "position"; // TRV
+    public static final String CHANNEL_CONTROL_MODE = "mode"; // TRV
+    public static final String CHANNEL_CONTROL_BCONTROL = "boost"; // TRV
+    public static final String CHANNEL_CONTROL_BTIMER = "boostTimer"; // TRV
+    public static final String CHANNEL_CONTROL_SCHEDULE = "schedule"; // TRV
+    public static final String CHANNEL_CONTROL_PROFILE = "selectedProfile"; // TRV
+    public static final String CHANNEL_CONTROL_ALARM_MODE = "alarmMode"; // Flood Gen4
+    public static final String CHANNEL_CONTROL_REPORT_HOLDOFF = "reportHoldoff"; // Flood Gen4
 
     // External sensors for Shelly1/1PM
     public static final String CHANNEL_ESENSOR_TEMP1 = CHANNEL_SENSOR_TEMP + "1";
@@ -231,6 +203,7 @@ public class ShellyBindingConstants {
     public static final String CHANNEL_ESENSOR_INPUT1 = CHANNEL_ESENSOR_INPUT + "1";
 
     public static final String CHANNEL_GROUP_CONTROL = "control";
+    public static final String CHANNEL_CTRL_SENSOR_ENABLE = "sensorEnable"; // Shelly Presence: enable/disable radar
     public static final String CHANNEL_SENSE_KEY = "key";
 
     public static final String CHANNEL_GROUP_BATTERY = "battery";
@@ -242,6 +215,7 @@ public class ShellyBindingConstants {
     public static final String CHANNEL_LIGHT_POWER = "power";
     public static final String CHANNEL_LIGHT_DEFSTATE = "defaultState";
     public static final String CHANNEL_GROUP_LIGHT_CHANNEL = "channel";
+    public static final String CHANNEL_GROUP_LIGHT_INDEX = "light";
 
     // Bulb/RGBW2 in color mode
     public static final String CHANNEL_GROUP_COLOR_CONTROL = "color";
@@ -269,15 +243,24 @@ public class ShellyBindingConstants {
     public static final String CHANNEL_DEVST_WAKEUP = "wakeupReason";
     public static final String CHANNEL_DEVST_ALARM = "alarm";
     public static final String CHANNEL_DEVST_ACCUWATTS = "accumulatedWatts";
-    public static final String CHANNEL_DEVST_ACCUTOTAL = "accumulatedWTotal";
-    public static final String CHANNEL_DEVST_ACCURETURNED = "accumulatedReturned";
-    public static final String CHANNEL_DEVST_RESETTOTAL = CHANNEL_EMETER_RESETTOTAL;
+    public static final String CHANNEL_DEVST_ACCUMULATEDPOWER = "accumulatedPower";
+    public static final String CHANNEL_DEVST_ACCURETURNED = "accumulatedReturned"; // deprecated, use
+                                                                                   // CHANNEL_DEVST_ACCURETURNEDENERGY
+    public static final String CHANNEL_DEVST_ACCURETURNEDENERGY = "accumulatedReturnedEnergy";
+    public static final String CHANNEL_DEVST_ACCUAPPARENT = "accumulatedApparent";
+    public static final String CHANNEL_DEVST_ACCUTOTAL = "accumulatedWTotal"; // deprecated, use
+                                                                              // CHANNEL_DEVST_TOTALENERGY
+    public static final String CHANNEL_DEVST_TOTALKWH = "totalKWH"; // deprecated (device group), use
+                                                                    // CHANNEL_DEVST_TOTALENERGY
+    public static final String CHANNEL_DEVST_TOTALENERGY = "totalEnergy";
+    public static final String CHANNEL_DEVST_RESETTOTAL = CHANNEL_EMETER_RESETTOTAL; // device group (3EM only)
 
     public static final String CHANNEL_DEVST_CHARGER = "charger";
     public static final String CHANNEL_DEVST_UPDATE = "updateAvailable";
     public static final String CHANNEL_DEVST_SELFTTEST = "selfTest";
     public static final String CHANNEL_DEVST_VOLTAGE = "supplyVoltage";
     public static final String CHANNEL_DEVST_CALIBRATED = "calibrated";
+    public static final String CHANNEL_DEVST_FIRMWARE = "firmware";
 
     public static final String CHANNEL_LED_STATUS_DISABLE = "statusLed";
     public static final String CHANNEL_LED_POWER_DISABLE = "powerLed";
@@ -290,6 +273,19 @@ public class ShellyBindingConstants {
     public static final String CHANNEL_STATUS_EVENTCOUNT1 = CHANNEL_STATUS_EVENTCOUNT + "1";
     public static final String CHANNEL_STATUS_EVENTCOUNT2 = CHANNEL_STATUS_EVENTCOUNT + "2";
 
+    // LoRa
+    public static final String CHANNEL_GROUP_LORA = "lora";
+    public static final String CHANNEL_LORA_RXDATA = "dataRx"; // Regular String
+    public static final String CHANNEL_LORA_TXDATA = "dataTx"; // Regular String
+    public static final String CHANNEL_LORA_RXDATARAW = "dataRxRaw"; // BASE64-encoded string
+    public static final String CHANNEL_LORA_TXDATARAW = "dataTxRaw";// BASE64-encoded string
+    public static final String CHANNEL_LORA_RXBYTES = "bytesRx";
+    public static final String CHANNEL_LORA_TXBYTES = "bytesTx";
+    public static final String CHANNEL_LORA_TXERRORS = "errorsTx";
+    public static final String CHANNEL_LORA_RSSI = "rssi";
+    public static final String CHANNEL_LORA_SNR = "snr";
+    public static final String CHANNEL_LORA_AIRTIME = "airtime";
+
     // General
     public static final String CHANNEL_LAST_UPDATE = "lastUpdate";
     public static final String CHANNEL_EVENT_TRIGGER = "event";
@@ -297,12 +293,14 @@ public class ShellyBindingConstants {
     public static final String CHANNEL_BUTTON_TRIGGER1 = CHANNEL_BUTTON_TRIGGER + "1";
     public static final String CHANNEL_BUTTON_TRIGGER2 = CHANNEL_BUTTON_TRIGGER + "2";
 
-    public static final String SERVICE_TYPE = "_http._tcp.local.";
     public static final String SHELLY_API_MIN_FWVERSION = "v1.8.2";
     public static final String SHELLY_API_MIN_FWCOIOT = "v1.6";// v1.6.0+
     public static final String SHELLY_API_FWCOIOT2 = "v1.8";// CoAP 2 with FW 1.8+
     public static final String SHELLY_API_FW_110 = "v1.10"; // FW 1.10 or newer detected, activates some add feature
     public static final String SHELLY2_API_MIN_FWVERSION = "v0.10.1"; // Gen 2 minimum FW
+
+    // Unprefixed (unlike the "v"-prefixed Gen1 constants above) to match Gen2+ profile.fwVersion (e.g. "1.2.3")
+    public static final String SHELLY2_API_FW_BLEAUTOSCAN = "2.0"; // FW 2.0+: BLE.SetConfig enable flag removed
 
     // Alarm types/messages
     public static final String ALARM_TYPE_NONE = "NONE";
@@ -314,6 +312,11 @@ public class ShellyBindingConstants {
     public static final String ALARM_TYPE_SENSOR_ERROR = "SENSOR_ERROR";
     public static final String ALARM_TYPE_LOW_BATTERY = "LOW_BATTERY";
     public static final String ALARM_TYPE_VALVE_ERROR = "VALVE_ERROR";
+    public static final String ALARM_TYPE_BTH_ENCRYPTED = "BTH_ENCRYPTED";
+    public static final String ALARM_TYPE_BTH_UNKNOWN_TYPE = "BTH_UNKNOWN_TYPE";
+    public static final String ALARM_TYPE_FLOOD = "FLOOD";
+    public static final String ALARM_TYPE_MUTED = "ALARM_MUTED";
+    public static final String ALARM_TYPE_LORA_RECEIVED = "LORA_RECEIVED";
     public static final String EVENT_TYPE_VIBRATION = "VIBRATION";
 
     // Event types
@@ -331,12 +334,20 @@ public class ShellyBindingConstants {
     // Formatting: Number of scaling digits
     public static final int DIGITS_NONE = 0;
     public static final int DIGITS_WATT = 2;
+    public static final int DIGITS_VAR = 2;
     public static final int DIGITS_KWH = 3;
-    public static final int DIGITS_VOLT = 1;
+    public static final int DIGITS_VOLT = 2;
     public static final int DIGITS_AMPERE = 3;
+    public static final int DIGITS_FREQUENCY = 2;
     public static final int DIGITS_TEMP = 1;
     public static final int DIGITS_LUX = 0;
     public static final int DIGITS_PERCENT = 1;
+    public static final int DIGITS_ROTATION = 1;
+    public static final int DIGITS_DISTANCE = 0;
+    public static final int DIGITS_WIND = 2; // BTHome 0x44 Speed has 0.01 m/s resolution
+    public static final int DIGITS_PRECIPITATION = 1;
+    public static final int DIGITS_PRESSURE = 2; // BTHome 0x04 Pressure has 0.01 hPa resolution
+    public static final int DIGITS_UV = 0; // UV Index is conventionally reported as a whole number (0-11+)
 
     public static final int SHELLY_API_TIMEOUT_MS = 10000;
     public static final int UPDATE_STATUS_INTERVAL_SECONDS = 3; // check for updates every x sec
@@ -348,4 +359,6 @@ public class ShellyBindingConstants {
 
     public static final String BUNDLE_RESOURCE_SNIPLETS = "sniplets"; // where to find code sniplets in the bundle
     public static final String BUNDLE_RESOURCE_SCRIPTS = "scripts"; // where to find scrips in the bundle
+
+    public static final int DEFAULT_LOCAL_PORT = 8080;
 }

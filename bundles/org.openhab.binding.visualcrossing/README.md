@@ -5,10 +5,10 @@ VisualCrossing Binding provides integration with VisualCrossing API
  > Visual Crossing Weather is the easiest-to-use and lowest-cost source for historical and forecast weather data.
  > Our [Weather API](https://www.visualcrossing.com/weather-api) is designed to integrate easily into any app or code, and
  > our prices are lower than any other provider in the industry.
- > 
+ >
  > Our data is used daily by a diverse customer-base including business analysts, data scientists, insurance professionals,
  > energy producers, construction planners, and academics.
- > 
+ >
  > We have the [Weather Data](https://www.visualcrossing.com/weather-data) and expertise needed to serve any individual or
  > organization from an independent event planner to a global enterprise.
 
@@ -22,30 +22,30 @@ from [VisualCrossing site](https://www.visualcrossing.com/)
 
 ### `weather` Thing Configuration
 
-| Name            | Type    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Default                            | Required | Advanced |
-|-----------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------|----------|----------|
-| password        | text    | API Key to connect to the cloud                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | N/A                                | yes      | no       |
-| location        | text    | Is the address, partial address or latitude,longitude location for which to retrieve weather data. You can also use US ZIP Codes.                                                                                                                                                                                                                                                                                                                                                                                         | OH location                        | no       | no       |
-| lang            | text    | Sets the language of the translatable parts of the output such as the conditions field. Available languages include: ar (Arabic), bg (Bulgiarian), cs (Czech), da (Danish), de (German), el (Greek Modern), en (English), es (Spanish) ), fa (Farsi), fi (Finnish), fr (French), he Hebrew), hu, (Hungarian), it (Italian), ja (Japanese), ko (Korean), nl (Dutch), pl (Polish), pt (Portuguese), ru (Russian), sk (Slovakian), sr (Serbian), sv (Swedish), tr (Turkish), uk (Ukranian), vi (Vietnamese) and zh (Chinese) | OH language                        | no       | no       |
-| hostname        | text    | Hostname or IP address of the server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | https://weather.visualcrossing.com | yes      | yes      |
-| refreshInterval | integer | Interval the device is polled in sec.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | 3600                               | no       | yes      |
-| httpRetries     | integer | Interval the device is polled in sec.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | 3                                  | no       | yes      |
+| Name            | Type    | Description                                                                                                                                                                                       | Default                              | Required | Advanced |
+|-----------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------|----------|----------|
+| password        | text    | API Key to connect to the cloud                                                                                                                                                                   | N/A                                  | yes      | no       |
+| location        | text    | Address, partial address, or latitude/longitude for weather data retrieval. US ZIP Codes are also accepted.                                                                                       | OH location                          | no       | no       |
+| lang            | text    | Language for translatable output parts (e.g., conditions field). Available languages: ar, bg, cs, da, de, el, en, es, fa, fi, fr, he, hu, it, ja, ko, nl, pl, pt, ru, sk, sr, sv, tr, uk, vi, zh. | OH language                          | no       | no       |
+| hostname        | text    | Hostname or IP address of the server                                                                                                                                                              | <https://weather.visualcrossing.com> | yes      | yes      |
+| refreshInterval | integer | Interval the device is polled in sec.                                                                                                                                                             | 3600                                 | no       | yes      |
+| httpRetries     | integer | Interval the device is polled in sec.                                                                                                                                                             | 3                                    | no       | yes      |
 
 ## Channels
 
 ### `basic-channel-group`
 
-| Channel     | Type   | Read/Write | Description                                                                                                                                                                                                                                                                                                                                                                                         |
-|-------------|--------|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| cost        | Switch | R          | How much API tokens thing used since start                                                                                                                                                                                                                                                                                                                                                          |
-| description | Switch | R          | Longer text descriptions suitable for displaying in weather displays. The descriptions combine the main features of the weather for the day such as precipitation or amount of cloud cover. Daily descriptions are provided for historical and forecast days. When the timeline request includes the model forecast period, a seven day outlook description is provided at the root response level. |
+| Channel     | Type   | Read/Write | Description                                                                                                                                                                                                                                                                                                                                            |
+|-------------|--------|------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| cost        | Switch | R          | How much API tokens Thing used since start                                                                                                                                                                                                                                                                                                             |
+| description | Switch | R          | Longer text descriptions suitable for displaying in weather displays. These descriptions summarize the day's main weather features, including precipitation and cloud cover. Daily descriptions are available for both historical and forecast days, and a seven-day outlook is provided when the timeline request includes the model forecast period. |
 
 ### `day-channel-group`
 
 | Channel         | Type                 | Read/Write | Description                                                                                                                                                                                                                                                                                                                                                                                                                             |
 |-----------------|----------------------|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| datetime       | String               | R          |                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| timestamp      | Number               | R          |                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| datetime        | String               | R          |                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| timestamp       | Number               | R          |                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | temperature     | Number:Temperature   | R          | Temperature at the location. Daily values are average values (mean) for the day                                                                                                                                                                                                                                                                                                                                                         |
 | temperature-min | Number:Temperature   | R          | Minimum temperature at the location                                                                                                                                                                                                                                                                                                                                                                                                     |
 | temperature-max | Number:Temperature   | R          | Maximum temperature at the location                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -87,31 +87,31 @@ In `day-channel-group` there are 0–23 channels of type `hourXX`
 
 | Channel                | Type                        | Read/Write | Description |
 |------------------------|-----------------------------|------------|-------------|
-| hourXX-datetime        | time-channel                | R          |             |  
-| hourXX-timestamp       | timestamp-channel           | R          |             |  
-| hourXX-temperature     | system.outdoor-temperature  | R          |             |  
-| hourXX-feels-like      | temperature-channel         | R          |             |  
-| hourXX-humidity        | system.atmospheric-humidity | R          |             |  
-| hourXX-dew             | temperature-channel         | R          |             |  
-| hourXX-precip          | precip-channel              | R          |             |  
-| hourXX-precip-prob     | precip-prob-channel         | R          |             |  
-| hourXX-precip-type     | precip-type-channel         | R          |             |  
-| hourXX-snow            | snow-channel                | R          |             |  
-| hourXX-snow-depth      | snow-channel                | R          |             |  
-| hourXX-wind-gust       | system.wind-speed           | R          |             |  
-| hourXX-wind-speed      | system.wind-speed           | R          |             |  
-| hourXX-wind-dir        | system.wind-direction       | R          |             |  
-| hourXX-pressure        | system.barometric-pressure  | R          |             |  
-| hourXX-visibility      | visibility-channel          | R          |             |  
-| hourXX-cloud-cover     | cloud-cover-channel         | R          |             |  
-| hourXX-solar-radiation | solar-radiation-channel     | R          |             |  
-| hourXX-solar-energy    | solar-energy-channel        | R          |             |  
-| hourXX-uv-index        | uv-index-channel            | R          |             |  
-| hourXX-severe-risk     | severe-risk-channel         | R          |             |  
-| hourXX-conditions      | conditions-channel          | R          |             |  
-| hourXX-icon            | icon-channel                | R          |             |  
-| hourXX-stations        | stations-channel            | R          |             |  
-| hourXX-source          | source-channel              | R          |             |   
+| hourXX-datetime        | time-channel                | R          |             |
+| hourXX-timestamp       | timestamp-channel           | R          |             |
+| hourXX-temperature     | system.outdoor-temperature  | R          |             |
+| hourXX-feels-like      | temperature-channel         | R          |             |
+| hourXX-humidity        | system.atmospheric-humidity | R          |             |
+| hourXX-dew             | temperature-channel         | R          |             |
+| hourXX-precip          | precip-channel              | R          |             |
+| hourXX-precip-prob     | precip-prob-channel         | R          |             |
+| hourXX-precip-type     | precip-type-channel         | R          |             |
+| hourXX-snow            | snow-channel                | R          |             |
+| hourXX-snow-depth      | snow-channel                | R          |             |
+| hourXX-wind-gust       | system.wind-speed           | R          |             |
+| hourXX-wind-speed      | system.wind-speed           | R          |             |
+| hourXX-wind-dir        | system.wind-direction       | R          |             |
+| hourXX-pressure        | system.barometric-pressure  | R          |             |
+| hourXX-visibility      | visibility-channel          | R          |             |
+| hourXX-cloud-cover     | cloud-cover-channel         | R          |             |
+| hourXX-solar-radiation | solar-radiation-channel     | R          |             |
+| hourXX-solar-energy    | solar-energy-channel        | R          |             |
+| hourXX-uv-index        | uv-index-channel            | R          |             |
+| hourXX-severe-risk     | severe-risk-channel         | R          |             |
+| hourXX-conditions      | conditions-channel          | R          |             |
+| hourXX-icon            | icon-channel                | R          |             |
+| hourXX-stations        | stations-channel            | R          |             |
+| hourXX-source          | source-channel              | R          |             |
 
 ### `current-conditions-channel-group`
 
@@ -163,15 +163,15 @@ Thing visualcrossing:weather:all_config "Total Weather Data" @ "Weather" [ apiKe
 **Note 2: Use `docs/only_days.items` to have forecast for days but without hours or join items from `docs/Day_XX` to get hourly forecast for each day**
 
 ```java
-Group Total_Weather_Data "Total Weather Data" [ "Equipment" ] 
+Group Total_Weather_Data "Total Weather Data" [ "Equipment" ]
 
 // basic group
-Group Total_Weather_Data_Basic "Basic" (Total_Weather_Data) [ "Equipment" ] 
+Group Total_Weather_Data_Basic "Basic" (Total_Weather_Data) [ "Equipment" ]
 Number Total_Weather_Data_Basic_Cost "Cost" (Total_Weather_Data_Basic) [ "Point" ] {channel="visualcrossing:weather:default_config:basic#cost"}
 String Total_Weather_Data_Basic_Description "Description" (Total_Weather_Data_Basic) [ "Point" ] {channel="visualcrossing:weather:default_config:basic#description"}
 
 // current conditions
-Group Total_Weather_Data_Current_Conditions "Current Conditions" (Total_Weather_Data) [ "Equipment" ] 
+Group Total_Weather_Data_Current_Conditions "Current Conditions" (Total_Weather_Data) [ "Equipment" ]
 String Total_Weather_Data_Basic_Datetime "Datetime" (Total_Weather_Data_Current_Conditions) [ "Point" ] {channel="visualcrossing:weather:default_config:current-conditions#datetime"}
 DateTime Total_Weather_Data_Basic_Timestamp "Timestamp" (Total_Weather_Data_Current_Conditions) [ "Point" ] {channel="visualcrossing:weather:default_config:current-conditions#timestamp"}
 Number:Temperature Total_Weather_Data_Basic_Temperature "Temperature" (Total_Weather_Data_Current_Conditions) [ "Point" ] {channel="visualcrossing:weather:default_config:current-conditions#temperature"}
@@ -179,7 +179,7 @@ Number:Temperature Total_Weather_Data_Basic_Feels_Like "Feels Like" (Total_Weath
 Number:Dimensionless Total_Weather_Data_Basic_Humidity "Humidity" (Total_Weather_Data_Current_Conditions) [ "Point" ] {channel="visualcrossing:weather:default_config:current-conditions#humidity"}
 Number:Temperature Total_Weather_Data_Basic_Dew "Dew" (Total_Weather_Data_Current_Conditions) [ "Point" ] {channel="visualcrossing:weather:default_config:current-conditions#dew"}
 Number:Length Total_Weather_Data_Basic_Precip "Precip" (Total_Weather_Data_Current_Conditions) [ "Point" ] {channel="visualcrossing:weather:default_config:current-conditions#precip", unit="mm"}
-Number:Dimensionless Total_Weather_Data_Basic_Precip_Probality "Precip Probality" (Total_Weather_Data_Current_Conditions) [ "Point" ] {channel="visualcrossing:weather:default_config:current-conditions#precip-prob"}
+Number:Dimensionless Total_Weather_Data_Basic_Precip_Probability "Precip Probability" (Total_Weather_Data_Current_Conditions) [ "Point" ] {channel="visualcrossing:weather:default_config:current-conditions#precip-prob"}
 String Total_Weather_Data_Basic_Precip_Type "Precip Type" (Total_Weather_Data_Current_Conditions) [ "Point" ] {channel="visualcrossing:weather:default_config:current-conditions#precip-type"}
 Number:Length Total_Weather_Data_Basic_Snow "Snow" (Total_Weather_Data_Current_Conditions) [ "Point" ] {channel="visualcrossing:weather:default_config:current-conditions#snow"}
 Number:Length Total_Weather_Data_Basic_Snow_Depth "Snow Depth" (Total_Weather_Data_Current_Conditions) [ "Point" ] {channel="visualcrossing:weather:default_config:current-conditions#snow-depth"}
@@ -214,12 +214,12 @@ rule "test"
 when
     /* when */
 then
-	val actions = getActions("visualcrossing", "visualcrossing:weather:as8af03m38")
-	if (actions !== null) {
-            val weatherResponse1 = actions.timeline()
-            // lang - https://www.visualcrossing.com/resources/documentation/weather-api/how-to-create-or-modify-language-files/
-            // dateFrom, dateTo - https://www.visualcrossing.com/resources/documentation/weather-api/using-the-time-period-parameter-to-specify-dynamic-dates-for-weather-api-requests/
-            val weatherResponse2 = actions.timeline("wrocław,poland", METRIC, "pl", "last7days", "next5days")
-	} 
+    val actions = getActions("visualcrossing", "visualcrossing:weather:as8af03m38")
+    if (actions !== null) {
+        val weatherResponse1 = actions.timeline()
+        // lang - https://www.visualcrossing.com/resources/documentation/weather-api/how-to-create-or-modify-language-files/
+        // dateFrom, dateTo - https://www.visualcrossing.com/resources/documentation/weather-api/using-the-time-period-parameter-to-specify-dynamic-dates-for-weather-api-requests/
+        val weatherResponse2 = actions.timeline("wrocław,poland", METRIC, "pl", "last7days", "next5days")
+    }
 end
 ```

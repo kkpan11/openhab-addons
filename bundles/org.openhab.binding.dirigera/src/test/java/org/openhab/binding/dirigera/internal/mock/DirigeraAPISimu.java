@@ -1,0 +1,219 @@
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
+ *
+ * See the NOTICE file(s) distributed with this work for additional
+ * information.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
+package org.openhab.binding.dirigera.internal.mock;
+
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.openhab.binding.dirigera.internal.interfaces.Model.JSON_KEY_DEVICE_ID;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jetty.client.HttpClient;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.openhab.binding.dirigera.internal.FileReader;
+import org.openhab.binding.dirigera.internal.interfaces.DirigeraAPI;
+import org.openhab.binding.dirigera.internal.interfaces.Gateway;
+import org.openhab.binding.dirigera.internal.interfaces.Model;
+import org.openhab.core.library.types.RawType;
+import org.openhab.core.types.State;
+import org.openhab.core.types.UnDefType;
+
+/**
+ * The {@link DirigeraAPISimu} basic DeviceHandler for all devices
+ *
+ * @author Bernd Weymann - Initial contribution
+ * @author Bernd Weymann - add device set handling
+ */
+@NonNullByDefault
+public class DirigeraAPISimu implements DirigeraAPI {
+    private JSONObject model = new JSONObject();
+
+    private String fileName = "src/test/resources/home/home.json";
+    private Map<String, String> patchMap = new HashMap<>();
+    private Map<String, String> setPatchMap = new HashMap<>();
+    public static List<String> scenesAdded = new ArrayList<>();
+    public static List<String> scenesDeleted = new ArrayList<>();
+
+    public DirigeraAPISimu(HttpClient client, Gateway gateway) {
+    }
+
+    public DirigeraAPISimu(HttpClient client, Gateway gateway, String homeFile) {
+        fileName = homeFile;
+    }
+
+    @Override
+    public JSONObject readHome() {
+        String modelString = FileReader.readFileInString(fileName);
+        model = new JSONObject(modelString);
+        return model;
+    }
+
+    @Override
+    public JSONObject readDevice(String deviceId) {
+        JSONObject returnObject = new JSONObject();
+        if (model.has("devices")) {
+            JSONArray devices = model.getJSONArray("devices");
+            Iterator<Object> entries = devices.iterator();
+            while (entries.hasNext()) {
+                JSONObject entry = (JSONObject) entries.next();
+                if (deviceId.equals(entry.get(JSON_KEY_DEVICE_ID))) {
+                    return entry;
+                }
+            }
+        }
+        return returnObject;
+    }
+
+    @Override
+    public void triggerScene(String sceneId, String trigger) {
+    }
+
+    @Override
+    public int sendAttributes(String id, JSONObject attributes) {
+        JSONObject data = new JSONObject();
+        data.put(Model.JSON_KEY_ATTRIBUTES, attributes);
+        return sendPatch(id, data);
+    }
+
+    @Override
+    public int sendSetAttributes(String id, JSONObject attributes) {
+        JSONObject data = new JSONObject();
+        data.put(Model.JSON_KEY_ATTRIBUTES, attributes);
+        synchronized (setPatchMap) {
+            setPatchMap.put(id, data.toString());
+            setPatchMap.notifyAll();
+        }
+        return 200;
+    }
+
+    public @Nullable String getSetPatch(String id) {
+        Instant endTime = Instant.now().plusSeconds(10);
+        synchronized (setPatchMap) {
+            String patch = setPatchMap.get(id);
+            while (patch == null && Instant.now().isBefore(endTime)) {
+                try {
+                    setPatchMap.wait(100);
+                    patch = setPatchMap.get(id);
+                } catch (InterruptedException e) {
+                    fail();
+                }
+            }
+            return patch;
+        }
+    }
+
+    @Override
+    public int sendPatch(String id, JSONObject attributes) {
+        synchronized (patchMap) {
+            patchMap.put(id, attributes.toString());
+            patchMap.notifyAll();
+        }
+        return 200;
+    }
+
+    @Override
+    public State getImage(String imageURL) {
+        Path path = Paths.get("src/test/resources/coverart/sonos-radio-cocktail-hour.avif");
+        try {
+            byte[] imageData = Files.readAllBytes(path);
+            return new RawType(imageData, RawType.DEFAULT_MIME_TYPE);
+        } catch (IOException e) {
+            fail("getting image");
+        }
+        return UnDefType.UNDEF;
+    }
+
+    @Override
+    public JSONObject readScene(String sceneId) {
+        JSONObject returnObject = new JSONObject();
+        if (model.has("devices")) {
+            JSONArray devices = model.getJSONArray("scenes");
+            Iterator<Object> entries = devices.iterator();
+            while (entries.hasNext()) {
+                JSONObject entry = (JSONObject) entries.next();
+                if (sceneId.equals(entry.get(JSON_KEY_DEVICE_ID))) {
+                    return entry;
+                }
+            }
+        }
+        return returnObject;
+    }
+
+    @Override
+    public String createScene(String uuid, String clickPattern, String controllerId) {
+        scenesAdded.add(uuid);
+        return uuid;
+    }
+
+    @Override
+    public void deleteScene(String uuid) {
+        scenesDeleted.add(uuid);
+    }
+
+    public @Nullable String getPatch(String id) {
+        Instant endTime = Instant.now().plusSeconds(10);
+        synchronized (patchMap) {
+            String patch = patchMap.get(id);
+            while (patch == null && Instant.now().isBefore(endTime)) {
+                try {
+                    patchMap.wait(100);
+                    patch = patchMap.get(id);
+                } catch (InterruptedException e) {
+                    fail();
+                }
+            }
+            return patch;
+        }
+    }
+
+    /**
+     * Returns the patch for the given id immediately without waiting (returns null if not present).
+     * Use this when asserting that a patch was NOT sent.
+     */
+    public @Nullable String peekPatch(String id) {
+        synchronized (patchMap) {
+            return patchMap.get(id);
+        }
+    }
+
+    /**
+     * Clears all recorded device and set patches. Convenience method so tests do not need
+     * to call patchMap and setPatchMap individually — adding a new patch map in the future
+     * only requires updating this single method.
+     */
+    public void clearPatches() {
+        synchronized (patchMap) {
+            patchMap.clear();
+        }
+        synchronized (setPatchMap) {
+            setPatchMap.clear();
+        }
+    }
+
+    public void clear() {
+        clearPatches();
+        scenesAdded.clear();
+        scenesDeleted.clear();
+    }
+}

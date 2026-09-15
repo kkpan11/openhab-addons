@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -201,7 +201,7 @@ public final class QbusCommunication extends BaseThingHandler {
         qbusListenerRunning = false;
         ctdConnected = false;
 
-        logger.trace("Communication stopped from thread {}", Thread.currentThread().getId());
+        logger.trace("Communication stopped from thread {}", Thread.currentThread().threadId());
     }
 
     /**
@@ -244,7 +244,6 @@ public final class QbusCommunication extends BaseThingHandler {
         try {
             while (!Thread.currentThread().isInterrupted() && ((qMessage = reader.readLine()) != null)) {
                 readMessage(qMessage);
-
             }
         } catch (IOException e) {
             if (!listenerStopped) {
@@ -269,7 +268,7 @@ public final class QbusCommunication extends BaseThingHandler {
         }
 
         qbusListenerRunning = false;
-        logger.trace("Event listener thread stopped on thread {}", Thread.currentThread().getId());
+        logger.trace("Event listener thread stopped on thread {}", Thread.currentThread().threadId());
     }
 
     /**
@@ -301,7 +300,6 @@ public final class QbusCommunication extends BaseThingHandler {
             }
             if ((writer == null) || (writer.checkError())) {
                 logger.warn("Error resending message");
-
             }
         }
     }
@@ -551,7 +549,6 @@ public final class QbusCommunication extends BaseThingHandler {
                 throw new IOException("Cannot read from socket, reader not connected.");
             }
             readMessage(reader.readLine());
-
         } else {
             QbusBridgeHandler handler = bridgeCallBack;
             if (handler != null) {
@@ -584,7 +581,6 @@ public final class QbusCommunication extends BaseThingHandler {
             if (handler != null) {
                 handler.bridgeOnline();
             }
-
         } else {
             if (handler != null) {
                 handler.bridgeOffline(ThingStatusDetail.CONFIGURATION_ERROR, "No serial nr defined");

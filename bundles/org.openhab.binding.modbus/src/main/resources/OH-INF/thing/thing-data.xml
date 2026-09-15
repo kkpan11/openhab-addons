@@ -48,7 +48,7 @@
 	<br />Any other value than the above types will be interpreted as static text, in which case the actual content of the polled
 		value is ignored.
 	<br />Multiple transformations can be chained by listing each transformation on a separate line,
-	  or by concatenating them with "∩", for example SERVICE1(ARG1)∩SERVICE2(ARG2)]]></description>
+	or by concatenating them with "∩", for example SERVICE1(ARG1)∩SERVICE2(ARG2)]]></description>
 				<default>default</default>
 			</parameter>
 			<parameter name="readValueType" type="text">
@@ -103,9 +103,9 @@
 	<br /><br />Use "default" to communicate that no transformation is done and value should be passed as is.
 	<br />Use SERVICENAME(ARG) or SERVICENAME:ARG to use transformation service.
 	<br />Any other value than the above types will be interpreted as static text, in which case the actual content of the command
-	  value is ignored.
+	value is ignored.
 	<br />Multiple transformations can be chained by listing each transformation on a separate line,
-	  or by concatenating them with "∩", for example SERVICE1(ARG1)∩SERVICE2(ARG2)]]></description>
+	or by concatenating them with "∩", for example SERVICE1(ARG1)∩SERVICE2(ARG2)]]></description>
 				<default>default</default>
 			</parameter>
 			<parameter name="writeValueType" type="text">
@@ -115,17 +115,26 @@
 				]]>
 				</description>
 				<options>
-					<option value="int64">64bit positive or negative integer, 4 registers (int64, uint64)</option>
-					<option value="int64_swap">64bit positive or negative integer, 4 registers but with 16bit words/registers in reverse
+					<option value="int64">64bit signed integer, 4 registers (int64)</option>
+					<option value="uint64">64bit unsigned integer, 4 registers (uint64)</option>
+					<option value="int64_swap">64bit signed integer, 4 registers but with 16bit words/registers in reverse
 						order (dcba)
-						(int64_swap, uint64_swap)</option>
+						(int64_swap)</option>
+					<option value="uint64_swap">64bit unsigned integer, 4 registers but with 16bit words/registers in reverse
+						order (dcba)
+						(uint64_swap)</option>
 					<option value="float32">32bit floating point (float32)</option>
 					<option value="float32_swap">32bit floating point, 16bit words swapped (float32_swap)</option>
-					<option value="int32">32bit positive or negative integer, 2 registers (int32, uint32)</option>
-					<option value="int32_swap">32bit positive or negative integer, 2 registers but with 16bit words/registers in reverse
+					<option value="int32">32bit signed integer, 2 registers (int32)</option>
+					<option value="uint32">32bit unsigned integer, 2 registers (uint32)</option>
+					<option value="int32_swap">32bit signed integer, 2 registers but with 16bit words/registers in reverse
 						order (ba)
-						(int32_swap, uint32_swap)</option>
-					<option value="int16">16bit positive or negative integer, 1 register (int16, uint16)</option>
+						(int32_swap)</option>
+					<option value="uint32_swap">32bit unsigned integer, 2 registers but with 16bit words/registers in reverse
+						order (ba)
+						(uint32_swap)</option>
+					<option value="int16">16bit signed integer, 1 register (int16)</option>
+					<option value="uint16">16bit unsigned integer, 1 register (uint16)</option>
 					<option value="bit">individual bit (bit)</option>
 				</options>
 			</parameter>

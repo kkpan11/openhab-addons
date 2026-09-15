@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -18,11 +18,13 @@ import static org.openhab.binding.magentatv.internal.MagentaTVUtil.*;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.openhab.binding.magentatv.internal.MagentaTVBindingConstants;
 import org.openhab.binding.magentatv.internal.MagentaTVHandlerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +52,7 @@ public class MagentaTVPoweroffListener extends Thread {
 
     public MagentaTVPoweroffListener(MagentaTVHandlerFactory handlerFactory,
             @Nullable NetworkInterface networkInterface) throws IOException {
-        setName("OH-Binding-magentatv-upnp-listener");
+        super(String.format("OH-binding-%s-%s", MagentaTVBindingConstants.BINDING_ID, "PoweroffListener"));
         setDaemon(true);
 
         this.handlerFactory = handlerFactory;
@@ -82,7 +84,7 @@ public class MagentaTVPoweroffListener extends Thread {
             // Join the Multicast group on the selected network interface
             socket.setNetworkInterface(networkInterface);
             InetAddress group = InetAddress.getByName(UPNP_MULTICAST_ADDRESS);
-            socket.joinGroup(group);
+            socket.joinGroup(new InetSocketAddress(group, UPNP_PORT), networkInterface);
 
             // read the SSDP messages
             while (!socket.isClosed()) {

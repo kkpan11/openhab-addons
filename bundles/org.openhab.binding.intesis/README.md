@@ -4,7 +4,7 @@ This binding connects to WiFi [IntesisHome](https://www.intesis.com/products/clo
 
 ## Supported Things
 
-This binding only supports one thing type:
+This binding only supports one Thing type:
 
 | Thing       | Thing Type | Description                                 |
 |-------------|------------|---------------------------------------------|
@@ -38,14 +38,15 @@ The binding uses the following configuration parameters.
 | targetTemperature  | Number:Temperature | The currently set target temperature (if applicable)   | range between 18°C and 30°C                             |
 | ambientTemperature | Number:Temperature | (Readonly) The ambient air temperature (if applicable) |                                                         |
 | outdoorTemperature | Number:Temperature | (Readonly) The outdoor air temperature (if applicable) |                                                         |
-| errorStatus        | String             | (Readonly) The error status of the device              | OK,ERR                                                  |
+| errorStatus        | Switch             | (Readonly) The error status of the device              | On/Off (`intesisHome`)                                  |
+| errorStatus        | String             | (Readonly) The error status of the device              | OK,ERR (`intesisBox`)                                   |
 | errorCode          | String             | (Readonly) The error code if an error encountered      | not documented                                          |
 | wifiSignal         | Number             | (Readonly) WiFi signal strength                        | 4=excellent, 3=very good, 2=good, 1=acceptable, 0=low   |
 
 Note that individual A/C units may not support all channels, or all possible values for those channels.
 
-The binding will add all supported channels and possible values on first thing initialization and list them as thing properties.
-If new channels or values might be supported after firmware upgrades, deleting the thing and re-adding is necessary.
+The binding will add all supported channels and possible values on first Thing initialization and list them as Thing properties.
+If new channels or values might be supported after firmware upgrades, deleting the Thing and re-adding is necessary.
 For example, not all A/C units have controllable vanes or fan speed may be limited to 1-4, instead of all of 1-9.
 The target temperature is also limited to a device specific range. For target temperature, sending an invalid value
 will cause it to choose the minimum/maximum allowable value as appropriate. The device will also round it to
@@ -91,12 +92,12 @@ sitemap intesishome label="My AC control" {
           Switch item=acVanesUpDown    icon="movecontrol"      mappings=[AUTO="Stop", 1="1", 2="2", 3="3", 4="4", 5="5", SWING="Swing"]
           Switch item=acVanesLeftRight icon="movecontrol"      mappings=[AUTO="Stop", 1="1", 2="2", 3="3", 4="4", 5="5", SWING="Swing"]
           Setpoint item=acSetPoint     icon="temperature"      minValue=16 maxValue=28 step=1
-          Text item=acAmbientTemp      icon="temperature" 
+          Text item=acAmbientTemp      icon="temperature"
           Text item=acOutdoorTemp      icon="temperature"
           Text item=acErrorStatus
           Text item=acErrorCode
           Text item=acWifiSignal       icon="qualityofservice"
-           
+
     }
 }
 ```

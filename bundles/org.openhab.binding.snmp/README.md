@@ -8,10 +8,10 @@ Currently, protocol version 1 and 2c are supported.
 
 There are two supported things:
 
- - `target` for SNMP v1/v2c agents
- - `target3` for SNMP v3 agents
+- `target` for SNMP v1/v2c agents
+- `target3` for SNMP v3 agents
 
-Both represent a single network device. 
+Both represent a single network device.
 Things can be extended with `number`, `string` and `switch` channels.
 
 ## Binding Configuration
@@ -46,7 +46,7 @@ port=8162
 
 ### Common parameters for all thing-types
 
-The `hostname` is mandatory and can be set as FQDN or IP address. 
+The `hostname` is mandatory and can be set as FQDN or IP address.
 
 An optional configuration parameter is `refresh`.
 By using the `refresh` parameter the time between two subsequent GET requests to the target can be set.
@@ -60,12 +60,12 @@ It defaults to 161.
 
 By using the `timeout` and `retries` parameters the timeout/error behaviour can be defined.
 A single request times out after `timeout` ms.
-After `retries` timeouts the refresh operation is considered to be fails and the status of the thing set accordingly.
+After `retries` timeouts the refresh operation is considered to have failed and the status of the Thing is set accordingly.
 The default values are `timeout=1500` and `retries=2`.
 
 ### `target`
 
-The `target` thing has two optional configuration parameters: `community` and `version`.
+The `target` Thing has two optional configuration parameters: `community` and `version`.
 
 The SNMP community for SNMP version 2c can be set with the `community` parameter.
 It defaults to `public`.
@@ -77,7 +77,7 @@ The default is `v1`.
 
 ### `target3`
 
-The `target3` thing has an additional mandatory parameter: `user`.
+The `target3` Thing has an additional mandatory parameter: `user`.
 This value of this parameter is named "securityName" or "userName" in most agents.
 
 Optional configuration parameters are: `securityModel`, `authProtocol`, `authPassphrase`, `privProtocol` and `privPassphrase`.
@@ -85,7 +85,7 @@ Optional configuration parameters are: `securityModel`, `authProtocol`, `authPas
 The `securityModel` can be set to
 
 - `NO_AUTH_NO_PRIV` (default) - no encryption on authentication data, no encryption on transmitted data
-- `AUTH_NO_PRIV` - encryption on authentication data, no encryption on transmitted data 
+- `AUTH_NO_PRIV` - encryption on authentication data, no encryption on transmitted data
 - `AUTH_PRIV` - encryption on authentication data, encryption on transmitted data
 
 Depending on the `securityModel` some of the other parameters are also mandatory.
@@ -98,7 +98,7 @@ Other possible values for `privProtocol` are `DES3`, `AES128`, `AES192` and `AES
 
 ## Channels
 
-The `target` thing has no fixed channels.
+The `target` Thing has no fixed channels.
 It can be extended with channels of type `number`, `string`, `switch`.
 
 All channel-types have one mandatory parameter: `oid`.
@@ -123,21 +123,20 @@ The `HEXSTRING` datatype converts a hexadecimal string (e.g. `aa bb 11`) to the 
 
 `number`-type channels can have a parameter `unit` if their `mode` is set to `READ`. This will result in a state update applying [UoM](https://www.openhab.org/docs/concepts/units-of-measurement.html) to the received data if the UoM symbol is recognised.
 
-`switch`-type channels send a pre-defined value if they receive `ON` or `OFF` command in `WRITE` or `READ_WRITE` mode.
+`switch`-type channels send a predefined value if they receive `ON` or `OFF` commands in `WRITE` or `READ_WRITE` mode.
 In `READ`, `READ_WRITE` or `TRAP` mode they change to either `ON` or `OFF` on these values.
 The parameters used for defining the values are `onvalue` and `offvalue`.
 The `datatype` parameter is used to convert the configuration strings to the needed values.
 
 `number`-type channels have a `unit` parameter.
 The unit is added to the received value before it is passed to the channel.
-For commands (i.e. sending), the value is first converted to the configured unit. 
+For commands (i.e. sending), the value is first converted to the configured unit.
 
 | type     | item   | description                     |
 |----------|--------|---------------------------------|
 | number   | Number | a channel with a numeric value  |
 | string   | String | a channel with a string value   |
 | switch   | Switch | a channel that has two states   |
-
 
 ### SNMP Exception (Error) Handling
 
@@ -155,7 +154,7 @@ Valid values are all valid values for that channel (i.e. `ON`/`OFF` for a switch
 
 demo.things:
 
-```
+```java
 Thing snmp:target:router [ hostname="192.168.0.1", protocol="v2c" ] {
     Channels:
         Type number : inBytes [ oid=".1.3.6.1.2.1.31.1.1.1.6.2", mode="READ" ]

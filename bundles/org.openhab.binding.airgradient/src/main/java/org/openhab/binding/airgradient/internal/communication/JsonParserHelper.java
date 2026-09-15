@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -14,7 +14,6 @@ package org.openhab.binding.airgradient.internal.communication;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -50,18 +49,9 @@ public class JsonParserHelper {
         }
 
         if (measures != null) {
-            List<@Nullable Measure> nullableMeasuresWithoutNulls = measures.stream().filter(Objects::nonNull).toList();
-            List<Measure> measuresWithoutNulls = new ArrayList<>(nullableMeasuresWithoutNulls.size());
-            for (@Nullable
-            Measure m : nullableMeasuresWithoutNulls) {
-                if (m != null) {
-                    measuresWithoutNulls.add(m);
-                }
-            }
-
-            return measuresWithoutNulls;
+            return measures.stream().filter(Objects::nonNull).toList();
         }
 
-        return Collections.emptyList();
+        return List.of();
     }
 }

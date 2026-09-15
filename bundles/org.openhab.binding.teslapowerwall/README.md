@@ -12,12 +12,12 @@ The binding does not support auto discovery.
 
 ## Thing Configuration
 
-As a minimum, the hostname is needed:
-
-* hostname - The hostname of the Tesla Powerwall 2. Defaults to powerwall to avoid SSL certificate issues
-* email - the email of the local account on the Powerwall that the installer provided
-* password - the password of the local account on the Powerwall that the installer provided
-* refresh - The frequency with which to refresh information from the Tesla Powerwall2 specified in seconds. Defaults to 10 seconds.
+| Thing Parameter | Default Value | Required | Advanced | Description                                                                          |
+|-----------------|---------------|----------|----------|--------------------------------------------------------------------------------------|
+| hostname        | N/A           | Yes      | No       | The IP or hostname of the Tesla Powerwall                                            |
+| email           | N/A           | Yes      | No       | The email of the local account on the Powerwall that the installer provided          |
+| password        | N/A           | Yes      | No       | The password of the local account on the Powerwall that the installer provided       |
+| refresh         | 10            | No       | Yes      | The frequency with which to refresh information from the Powerwall (in seconds)      |
 
 ## Channels
 
@@ -39,23 +39,23 @@ As a minimum, the hostname is needed:
 | battery-energy-imported   | Number:Energy        | Total Battery Energy Imported                                |
 | home-energy-imported      | Number:Energy        | Total Home Energy Imported                                   |
 | solar-energy-imported     | Number:Energy        | Total Solar Energy Imported                                  |
-| degradation               | Number:Dimensionless | Current battery degradation % (Based on single battery)      |
+| degradation               | Number:Dimensionless | Current battery degradation %                                |
 | full-pack-energy          | Number:Energy        | Reported battery capacity at full                            |
 
 ## Full Example
 
-### `teslapowerwall.things`:
+### `teslapowerwall.things`
 
 ```java
 teslapowerwall:tesla-powerwall:TeslaPowerwall [ hostname="192.168.0.5" ]
 ```
 
-### `teslapowerwall.items`:
+### `teslapowerwall.items`
 
 ```java
 String TeslaPowerwall_grid-status { channel="teslapowerwall:tesla-powerwall:TeslaPowerwall:grid-status" }
 Switch TeslaPowerwall_grid-services { channel="teslapowerwall:tesla-powerwall:TeslaPowerwall:grid-services" }
-Number:Dimensionless TeslaPowerwall_battery-soe { channel="tesla-powerwall:teslapowerwall:TeslaPowerwall:battery-soe", unit="%" }
+Number:Dimensionless TeslaPowerwall_battery-soe { channel="teslapowerwall:tesla-powerwall:TeslaPowerwall:battery-soe", unit="%" }
 String TeslaPowerwall_mode { channel="teslapowerwall:tesla-powerwall:TeslaPowerwall:mode" }
 Number:Dimensionless TeslaPowerwall_reserve { channel="teslapowerwall:tesla-powerwall:TeslaPowerwall:reserve", unit="%" }
 Number:Power TeslaPowerwall_grid-inst-power { channel="teslapowerwall:tesla-powerwall:TeslaPowerwall:grid-inst-power" }
@@ -74,7 +74,7 @@ Number:Dimensionless TeslaPowerwall_degradation { channel="teslapowerwall:tesla-
 Number:Energy TeslaPowerwall_full-pack-energy { channel="teslapowerwall:tesla-powerwall:TeslaPowerwall:full-pack-energy" }
 ```
 
-### `teslapowerwall.sitemap`:
+### `teslapowerwall.sitemap`
 
 ```perl
 Text item=TeslaPowerwall_grid-status label="Grid Status [%s]"
@@ -89,7 +89,7 @@ Text item=TeslaPowerwall_solar-inst-power label="Solar Power [%.1f W]"
 Text item=TeslaPowerwall_grid-energy-exported label="Grid Energy Exported [%.1f kWh]"
 Text item=TeslaPowerwall_grid-energy-imported label="Grid Energy Imported [%.1f kWh]"
 Text item=TeslaPowerwall_battery-energy-exported label="Battery Energy Exported [%.1f kWh]"
-Text item=TeslaPowerwall_battery-energyi-mported label="Battery Energy Imported [%.1f kWh]"
+Text item=TeslaPowerwall_battery-energy-imported label="Battery Energy Imported [%.1f kWh]"
 Text item=TeslaPowerwall_home-energy-exported label="Home Energy Exported [%.1f kWh]"
 Text item=TeslaPowerwall_home-energy-imported label="Home Energy Imported [%.1f kWh]"
 Text item=TeslaPowerwall_solar-energy-exported label="Solar Energy Exported [%.1f kWh]"
@@ -97,4 +97,3 @@ Text item=TeslaPowerwall_solar-energy-imported label="Solar Energy Imported [%.1
 Text item=TeslaPowerwall_full-pack-energy label="Full Pack Energy"
 Text item=TeslaPowerwall_degradation label="Degradation level"
 ```
-

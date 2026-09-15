@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -21,8 +21,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
-import org.openhab.binding.easee.internal.AtomicReferenceTrait;
-import org.openhab.binding.easee.internal.EaseeBindingConstants;
 import org.openhab.binding.easee.internal.Utils;
 import org.openhab.binding.easee.internal.command.EaseeCommand;
 import org.openhab.binding.easee.internal.command.charger.ChangeConfiguration;
@@ -32,17 +30,12 @@ import org.openhab.binding.easee.internal.command.charger.LatestChargingSession;
 import org.openhab.binding.easee.internal.command.charger.SendCommand;
 import org.openhab.binding.easee.internal.command.charger.SendCommandPauseResume;
 import org.openhab.binding.easee.internal.command.charger.SendCommandStartStop;
-import org.openhab.binding.easee.internal.config.EaseeConfiguration;
 import org.openhab.binding.easee.internal.connector.CommunicationStatus;
-import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.Channel;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
 import org.openhab.core.thing.ThingStatusDetail;
-import org.openhab.core.thing.binding.BaseThingHandler;
 import org.openhab.core.types.Command;
-import org.openhab.core.types.State;
-import org.openhab.core.types.UnDefType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,17 +48,19 @@ import com.google.gson.JsonObject;
  * @author Alexander Friese - initial contribution
  */
 @NonNullByDefault
-public class EaseeChargerHandler extends BaseThingHandler implements EaseeThingHandler, AtomicReferenceTrait {
+public class EaseeChargerHandler extends EaseeBaseThingHandler {
     private final Logger logger = LoggerFactory.getLogger(EaseeChargerHandler.class);
 
     /**
      * Schedule for polling live data
      */
     private final AtomicReference<@Nullable Future<?>> dataPollingJobReference;
+    private final AtomicReference<@Nullable Future<?>> sessionDataPollingJobReference;
 
     public EaseeChargerHandler(Thing thing) {
         super(thing);
         this.dataPollingJobReference = new AtomicReference<>(null);
+        this.sessionDataPollingJobReference = new AtomicReference<>(null);
     }
 
     @Override
@@ -77,10 +72,6 @@ public class EaseeChargerHandler extends BaseThingHandler implements EaseeThingH
         startPolling();
 
         enqueueCommand(new Charger(this, getId(), this::updatePropertiesAndOnlineStatus));
-    }
-
-    public String getId() {
-        return getConfig().get(EaseeBindingConstants.THING_CONFIG_ID).toString();
     }
 
     private void updatePropertiesAndOnlineStatus(CommunicationStatus status, JsonObject charger) {
@@ -114,28 +105,53 @@ public class EaseeChargerHandler extends BaseThingHandler implements EaseeThingH
     /**
      * Start the polling.
      */
-    private void startPolling() {
+    @Override
+    protected void startPolling() {
         updateJobReference(dataPollingJobReference, scheduler.scheduleWithFixedDelay(this::pollingRun,
                 POLLING_INITIAL_DELAY, getBridgeConfiguration().getDataPollingInterval(), TimeUnit.SECONDS));
+
+        updateJobReference(sessionDataPollingJobReference, scheduler.scheduleWithFixedDelay(this::sessionDataPollingRun,
+                POLLING_INITIAL_DELAY, getBridgeConfiguration().getSessionDataPollingInterval(), TimeUnit.SECONDS));
+    }
+
+    /**
+     * Stops the polling.
+     */
+    @Override
+    protected void stopPolling() {
+        cancelJobReference(dataPollingJobReference);
+        cancelJobReference(sessionDataPollingJobReference);
     }
 
     /**
      * Poll the Easee Cloud API one time.
      */
     void pollingRun() {
-        String chargerId = getConfig().get(EaseeBindingConstants.THING_CONFIG_ID).toString();
+        String chargerId = getId();
         logger.debug("polling charger data for {}", chargerId);
 
         // proceed if charger is online
         if (getThing().getStatus() == ThingStatus.ONLINE) {
             enqueueCommand(new GetConfiguration(this, chargerId, this::updateOnlineStatus));
+        }
+    }
+
+    /**
+     * Poll the Easee Cloud API session data endpoint one time.
+     */
+    void sessionDataPollingRun() {
+        String chargerId = getId();
+        logger.debug("polling session data for {}", chargerId);
+
+        // proceed if charger is online
+        if (getThing().getStatus() == ThingStatus.ONLINE) {
             enqueueCommand(new LatestChargingSession(this, chargerId, this::updateOnlineStatus));
         }
     }
 
     /**
      * updates online status depending on online information received from the API. this is called by the SiteState
-     * Command which retrieves whole site data inclusing charger status.
+     * Command which retrieves whole site data including charger online status.
      *
      */
     public void setOnline(boolean isOnline) {
@@ -146,87 +162,9 @@ public class EaseeChargerHandler extends BaseThingHandler implements EaseeThingH
         }
     }
 
-    /**
-     * result processor to handle online status updates
-     *
-     * @param status of command execution
-     * @param jsonObject json respone result
-     */
-    protected final void updateOnlineStatus(CommunicationStatus status, JsonObject jsonObject) {
-        String msg = Utils.getAsString(jsonObject, JSON_KEY_ERROR_TITLE);
-        if (msg == null || msg.isBlank()) {
-            msg = status.getMessage();
-        }
-
-        switch (status.getHttpCode()) {
-            case OK:
-            case ACCEPTED:
-                super.updateStatus(ThingStatus.ONLINE, ThingStatusDetail.NONE);
-                break;
-            default:
-                super.updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, msg);
-        }
-    }
-
-    /**
-     * Disposes the thing.
-     */
-    @Override
-    public void dispose() {
-        logger.debug("Handler disposed.");
-        cancelJobReference(dataPollingJobReference);
-    }
-
-    /**
-     * will update all channels provided in the map
-     */
-    @Override
-    public void updateChannelStatus(Map<Channel, State> values) {
-        logger.debug("Handling charger channel update.");
-
-        for (Channel channel : values.keySet()) {
-            if (getThing().getChannels().contains(channel)) {
-                State value = values.get(channel);
-                if (value != null) {
-                    logger.debug("Channel is to be updated: {}: {}", channel.getUID().getAsString(), value);
-                    updateState(channel.getUID(), value);
-                } else {
-                    logger.debug("Value is null or not provided by Easee Cloud (channel: {})",
-                            channel.getUID().getAsString());
-                    updateState(channel.getUID(), UnDefType.UNDEF);
-                }
-            } else {
-                logger.debug("Could not identify channel: {} for model {}", channel.getUID().getAsString(),
-                        getThing().getThingTypeUID().getAsString());
-            }
-        }
-    }
-
-    @Override
-    public void enqueueCommand(EaseeCommand command) {
-        EaseeBridgeHandler bridgeHandler = getBridgeHandler();
-        if (bridgeHandler != null) {
-            bridgeHandler.enqueueCommand(command);
-        } else {
-            // this should not happen
-            logger.warn("no bridge handler found");
-        }
-    }
-
-    private @Nullable EaseeBridgeHandler getBridgeHandler() {
-        Bridge bridge = getBridge();
-        return bridge == null ? null : ((EaseeBridgeHandler) bridge.getHandler());
-    }
-
-    @Override
-    public EaseeConfiguration getBridgeConfiguration() {
-        EaseeBridgeHandler bridgeHandler = getBridgeHandler();
-        return bridgeHandler == null ? new EaseeConfiguration() : bridgeHandler.getBridgeConfiguration();
-    }
-
     @Override
     public EaseeCommand buildEaseeCommand(Command command, Channel channel) {
-        String chargerId = getConfig().get(EaseeBindingConstants.THING_CONFIG_ID).toString();
+        String chargerId = getId();
 
         switch (Utils.getWriteCommand(channel)) {
             case COMMAND_CHANGE_CONFIGURATION:
@@ -244,10 +182,5 @@ public class EaseeChargerHandler extends BaseThingHandler implements EaseeThingH
                 throw new UnsupportedOperationException(
                         "write command not found for channel: " + channel.getUID().getIdWithoutGroup());
         }
-    }
-
-    @Override
-    public Logger getLogger() {
-        return logger;
     }
 }

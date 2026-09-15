@@ -13,20 +13,19 @@ Right now, only the thermostat devices (3000W and 4000W) (TH1120RF) are supporte
 ## Discovery
 
 The Sinopé Gateway (bridge) discovery is not supported for now.
-It will be added in future release.
-The Sinopé devices discovery is implemented.
+The Sinopé device discovery is implemented.
 
 ## Prerequisites
 
 ### Bridge or the Sinopé Gateway
 
-First, you will need to get your API key from your Sinopé gateway.
+First, you will need to get your API key from your Sinopé Gateway.
 
 Grab the latest release of the [sinope-core library](<https://github.com/chaton78/sinope-core/releases>)
 
 On Windows, you can run the SinopeProtocol.exe (in the zip release).
-The gateway parameter is written on the back of the SinopéGateway (example, 002f-c2c2-dd88-aaaa).
-The addr parameter is the IP given to your gateway.
+The gateway parameter is written on the back of the Sinopé Gateway (e.g., 002f-c2c2-dd88-aaaa).
+The addr parameter is the IP address given to your gateway.
 
 ```shell
 SinopeProtocol.exe -addr [YOUR_GATEWAY_IP_OR_HOSTNAME]  -gateway [YOUR_GATEWAY_ID] -login
@@ -45,21 +44,21 @@ Your api Key is: 0x12 0x57 0x55 0xD5 0xCD 0x4A 0xD5 0x33
 ### Thing Discovery
 
 You can use the same procedure to discover each device you want to use.
-You will need to provide the api key from the previous step.
-If you use spaces, please, use double quotes to pass the api key (i.e. "0x12 0x57 0x55 0xD5 0xCD 0x4A 0xD5 0x33")
+You will need to provide the API key from the previous step.
+If you use spaces, please use double quotes to pass the API key (i.e., "0x12 0x57 0x55 0xD5 0xCD 0x4A 0xD5 0x33").
 
 Use the device procedure to discover it.
 For a thermostat, you need to push both buttons.
-The application will loop forever, press ctrl-c to exit.
+The application will loop forever; press Ctrl+C to exit.
 
 ```shell
 SinopeProtocol.exe -addr [YOUR_GATEWAY_IP_OR_HOSTNAME]  -gateway [YOUR_GATEWAY_ID] -api "[YOUR_API_KEY]" -discover
 
 It is now time to push both buttons on your device!
-Press crtl-c to exit!
+Press Ctrl+C to exit!
 Your device id is: 0x00 0x00 0x35 0x86
 It is now time to push both buttons on your device!
-Press crtl-c to exit!
+Press Ctrl+C to exit!
 ```
 
 On other operating systems, using only a JVM, you can invoke directly the java command:
@@ -68,16 +67,16 @@ On other operating systems, using only a JVM, you can invoke directly the java c
 java -jar core-0.0.3-shaded.jar -addr [YOUR_GATEWAY_IP_OR_HOSTNAME]  -gateway [YOUR_GATEWAY_ID] -api "[YOUR_API_KEY]" -discover
 
 It is now time to push both buttons on your device!
-Press crtl-c to exit!
+Press Ctrl+C to exit!
 Your device id is: 0x00 0x00 0x35 0x86
 It is now time to push both buttons on your device!
-Press crtl-c to exit!
+Press Ctrl+C to exit!
 ```
 
 ## Thing Configuration
 
 The Sinopé bridge requires the address, the gateway id and the API key in order for the binding to know where and how to access it.
-In the thing file, this looks e.g. like
+In the Thing file, this looks e.g. like
 
 ```java
 Bridge sinope:gateway:home [ hostname="[YOUR_GATEWAY_IP_OR_HOSTNAME]", gatewayId="[YOUR_GATEWAY_ID]", apiKey="0x1F 0x5D 0xC8 0xD5 0xCD 0x3A 0xD7 0x23"]
@@ -105,7 +104,7 @@ Thermostat devices support some of the following channels:
 
 In this example setup the Sinopé Gateway is represented as a Bridge **Home** with thermostat **Room**
 
-### demo.things:
+### `demo.things` Example
 
 ```java
 Bridge sinope:gateway:home [ hostname="sinope", gatewayId="1234-4567-1234-1234", apiKey="0x12 0x34 0x56 0x78 0x9A 0xBC 0xDE 0xF0"] {
@@ -113,7 +112,7 @@ Bridge sinope:gateway:home [ hostname="sinope", gatewayId="1234-4567-1234-1234",
 }
 ```
 
-### demo.items:
+### `demo.items` Example
 
 ```java
 Number Room_In  "Room Temp. [%.2f °C]" <temperature> { channel="sinope:thermostat:home:room:insideTemperature" }
@@ -123,13 +122,13 @@ Number Room_SetPointMode "Room Set Point Mode" { channel="sinope:thermostat:home
 Number Room_HeatLevel "Room Heating level [%d]" <heating> { channel="sinope:thermostat:home:room:heatingLevel" }
 ```
 
-### demo.sitemap:
+### `demo.sitemap` Example
 
 ```perl
 sitemap demo label="Main Menu"
-{ 
+{
   Frame label="Sinope" {
-     Text item=Room_In   
+     Text item=Room_In
      Text item=Room_Out
      Setpoint item=Room_SetPoint  label="Set Point [%.1f °C]" step=0.5 minValue=5 maxValue=35
      Switch item=Room_SetPointMode mappings=[2=Manual, 3=Auto, 5=Away]

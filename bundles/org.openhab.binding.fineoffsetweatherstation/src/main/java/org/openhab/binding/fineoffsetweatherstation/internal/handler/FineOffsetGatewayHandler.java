@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -19,9 +19,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -32,14 +34,12 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.fineoffsetweatherstation.internal.FineOffsetGatewayConfiguration;
 import org.openhab.binding.fineoffsetweatherstation.internal.FineOffsetSensorConfiguration;
 import org.openhab.binding.fineoffsetweatherstation.internal.discovery.FineOffsetGatewayDiscoveryService;
-import org.openhab.binding.fineoffsetweatherstation.internal.domain.ConversionContext;
 import org.openhab.binding.fineoffsetweatherstation.internal.domain.SensorGatewayBinding;
 import org.openhab.binding.fineoffsetweatherstation.internal.domain.response.MeasuredValue;
 import org.openhab.binding.fineoffsetweatherstation.internal.domain.response.SensorDevice;
 import org.openhab.binding.fineoffsetweatherstation.internal.domain.response.SystemInfo;
 import org.openhab.binding.fineoffsetweatherstation.internal.service.GatewayQueryService;
 import org.openhab.core.i18n.LocaleProvider;
-import org.openhab.core.i18n.TimeZoneProvider;
 import org.openhab.core.i18n.TranslationProvider;
 import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.Channel;
@@ -74,9 +74,15 @@ public class FineOffsetGatewayHandler extends BaseBridgeHandler {
 
     private static final String PROPERTY_FREQUENCY = "frequency";
 
+    /**
+     * Number of consecutive live data responses a measurand may be missing from before its channel is removed. This
+     * debounces dynamically created channels so that a measurand that is only intermittently reported (or a delay in
+     * the gateway adjusting its live data after a sensor change) does not cause channels to flip-flop.
+     */
+    private static final int MISSING_MEASURAND_REMOVAL_THRESHOLD = 10;
+
     private final Logger logger = LoggerFactory.getLogger(FineOffsetGatewayHandler.class);
     private final Bundle bundle;
-    private final ConversionContext conversionContext;
 
     private @Nullable GatewayQueryService gatewayQueryService;
 
@@ -88,13 +94,14 @@ public class FineOffsetGatewayHandler extends BaseBridgeHandler {
     private final ThingUID bridgeUID;
 
     private @Nullable Map<SensorGatewayBinding, SensorDevice> sensorDeviceMap;
+    private final Map<String, Integer> missingMeasurandCounts = new HashMap<>();
     private @Nullable ScheduledFuture<?> pollingJob;
     private @Nullable ScheduledFuture<?> discoverJob;
     private boolean disposed;
 
     public FineOffsetGatewayHandler(Bridge bridge, FineOffsetGatewayDiscoveryService gatewayDiscoveryService,
             ChannelTypeRegistry channelTypeRegistry, TranslationProvider translationProvider,
-            LocaleProvider localeProvider, TimeZoneProvider timeZoneProvider) {
+            LocaleProvider localeProvider) {
         super(bridge);
         this.bridgeUID = bridge.getUID();
         this.gatewayDiscoveryService = gatewayDiscoveryService;
@@ -102,7 +109,6 @@ public class FineOffsetGatewayHandler extends BaseBridgeHandler {
         this.translationProvider = translationProvider;
         this.localeProvider = localeProvider;
         this.bundle = FrameworkUtil.getBundle(FineOffsetGatewayDiscoveryService.class);
-        this.conversionContext = new ConversionContext(timeZoneProvider.getTimeZone());
     }
 
     @Override
@@ -112,9 +118,10 @@ public class FineOffsetGatewayHandler extends BaseBridgeHandler {
     @Override
     public void initialize() {
         FineOffsetGatewayConfiguration config = getConfigAs(FineOffsetGatewayConfiguration.class);
-        gatewayQueryService = config.protocol.getGatewayQueryService(config, this::updateStatus, conversionContext);
+        gatewayQueryService = config.protocol.getGatewayQueryService(config, this::updateStatus);
 
         updateStatus(ThingStatus.UNKNOWN);
+        missingMeasurandCounts.clear();
         fetchAndUpdateSensors();
         disposed = false;
         updateBridgeInfo();
@@ -162,21 +169,43 @@ public class FineOffsetGatewayHandler extends BaseBridgeHandler {
             return;
         }
 
-        List<Channel> channels = new ArrayList<>();
+        Set<String> reportedChannelIds = new HashSet<>();
+        List<Channel> newChannels = new ArrayList<>();
         for (MeasuredValue measuredValue : data) {
+            String channelId = measuredValue.getChannelId();
+            reportedChannelIds.add(channelId);
             @Nullable
-            Channel channel = thing.getChannel(measuredValue.getChannelId());
+            Channel channel = thing.getChannel(channelId);
             if (channel == null) {
                 channel = createChannel(measuredValue);
                 if (channel != null) {
-                    channels.add(channel);
+                    newChannels.add(channel);
                 }
             } else {
                 State state = measuredValue.getState();
                 updateState(channel.getUID(), state);
             }
         }
-        if (!channels.isEmpty()) {
+
+        // Only remove a channel once its measurand has been missing from a number of consecutive live data
+        // responses. This debounces transient gaps (and delays in the gateway adjusting its live data) so that
+        // channels do not flip-flop, while channels of permanently removed sensors are eventually dropped.
+        List<Channel> staleChannels = new ArrayList<>();
+        for (Channel channel : thing.getChannels()) {
+            String channelId = channel.getUID().getId();
+            if (reportedChannelIds.contains(channelId)) {
+                missingMeasurandCounts.remove(channelId);
+            } else if (missingMeasurandCounts.merge(channelId, 1,
+                    Integer::sum) >= MISSING_MEASURAND_REMOVAL_THRESHOLD) {
+                staleChannels.add(channel);
+                missingMeasurandCounts.remove(channelId);
+            }
+        }
+
+        if (!newChannels.isEmpty() || !staleChannels.isEmpty()) {
+            List<Channel> channels = new ArrayList<>(thing.getChannels());
+            channels.addAll(newChannels);
+            channels.removeAll(staleChannels);
             updateBridgeThing(bridgeBuilder -> bridgeBuilder.withChannels(channels));
         }
     }
@@ -238,7 +267,7 @@ public class FineOffsetGatewayHandler extends BaseBridgeHandler {
     private void startDiscoverJob() {
         ScheduledFuture<?> job = discoverJob;
         if (job == null || job.isCancelled()) {
-            int discoverInterval = thing.getConfiguration().as(FineOffsetGatewayConfiguration.class).discoverInterval;
+            int discoverInterval = getConfigAs(FineOffsetGatewayConfiguration.class).discoverInterval;
             discoverJob = scheduler.scheduleWithFixedDelay(this::fetchAndUpdateSensors, 0, discoverInterval,
                     TimeUnit.SECONDS);
         }
@@ -255,7 +284,7 @@ public class FineOffsetGatewayHandler extends BaseBridgeHandler {
     private void startPollingJob() {
         ScheduledFuture<?> job = pollingJob;
         if (job == null || job.isCancelled()) {
-            int pollingInterval = thing.getConfiguration().as(FineOffsetGatewayConfiguration.class).pollingInterval;
+            int pollingInterval = getConfigAs(FineOffsetGatewayConfiguration.class).pollingInterval;
             pollingJob = scheduler.scheduleWithFixedDelay(this::updateLiveData, 5, pollingInterval, TimeUnit.SECONDS);
         }
     }

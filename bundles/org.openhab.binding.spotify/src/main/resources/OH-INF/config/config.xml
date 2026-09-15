@@ -18,8 +18,19 @@
 	<config-description uri="spotify:config:album-image">
 		<parameter name="imageIndex" type="integer" min="0" max="2">
 			<label>Image Index</label>
-			<description>Index in list of to select image to show</description>
+			<description>Index in the list to select the image to show</description>
 			<default>0</default>
+		</parameter>
+	</config-description>
+	<config-description uri="binding:spotify:authService">
+		<parameter name="forceHttps" type="boolean">
+			<label>Force HTTPS</label>
+			<description>Always use https for the Spotify redirect URI, regardless of the scheme openHAB detects for the
+				incoming
+				request. Enable this when running behind a reverse proxy that terminates https but does not identify
+				itself through a
+				recognized forwarded-proto header, causing the redirect URI to incorrectly use http.</description>
+			<default>false</default>
 		</parameter>
 	</config-description>
 </config-description:config-descriptions>

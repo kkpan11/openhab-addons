@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -46,9 +46,10 @@ import org.openhab.core.types.RefreshType;
  */
 @NonNullByDefault
 public class VelbusSensorWithAlarmClockHandler extends VelbusSensorHandler {
-    public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES = new HashSet<>(Arrays.asList(THING_TYPE_VMB2PBN,
-            THING_TYPE_VMB6PBN, THING_TYPE_VMB8PBU, THING_TYPE_VMBPIRC, THING_TYPE_VMBPIRM, THING_TYPE_VMBRFR8S,
-            THING_TYPE_VMBVP1, THING_TYPE_VMBKP, THING_TYPE_VMBIN, THING_TYPE_VMB4PB, THING_TYPE_VMB6PB_20));
+    public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES = new HashSet<>(
+            Arrays.asList(THING_TYPE_VMB2PBN, THING_TYPE_VMB6PBN, THING_TYPE_VMB8PBU, THING_TYPE_VMBPIRC,
+                    THING_TYPE_VMBPIRM, THING_TYPE_VMBRFR8S, THING_TYPE_VMBVP1, THING_TYPE_VMBKP, THING_TYPE_VMBIN,
+                    THING_TYPE_VMB4PB, THING_TYPE_VMB6PB_20, THING_TYPE_VMBPIR_20));
     private static final HashMap<ThingTypeUID, Integer> ALARM_CONFIGURATION_MEMORY_ADDRESSES = new HashMap<>();
 
     static {
@@ -95,6 +96,17 @@ public class VelbusSensorWithAlarmClockHandler extends VelbusSensorHandler {
         ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMBDALI_20, 0x0513);
         ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMBEL4PIR_20, 0x032B);
         ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMBGP4PIR_20, 0x032B);
+        ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMB4LEDPWM_20, 0x0043);
+        ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMB8DC_20, 0x0083);
+        ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMBPIRO_10, 0x0031);
+        ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMBPIR_20, 0x0033);
+        ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMB8IN_20, 0x00A7);
+        ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMB2DC_20, 0x0023);
+        ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMBGPTC, 0x0284);
+        ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMB4RYLD_20, 0x00A3);
+        ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMB4RYNO_20, 0x00A3);
+        ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMB1RYS_20, 0x00A3);
+        ALARM_CONFIGURATION_MEMORY_ADDRESSES.put(THING_TYPE_VMBPIRO_20, 0x0033);
     }
 
     private static final byte ALARM_CONFIGURATION_MEMORY_SIZE = 0x09;
@@ -235,15 +247,17 @@ public class VelbusSensorWithAlarmClockHandler extends VelbusSensorHandler {
                 lastUpdateAlarm2TimeMillis = System.currentTimeMillis();
             }
 
-            VelbusSetLocalClockAlarmPacket packet = new VelbusSetLocalClockAlarmPacket(getModuleAddress().getAddress(),
-                    alarmNumber, alarmClock);
-            byte[] packetBytes = packet.getBytes();
+            if (!alarmClock.hasDefaultValues()) {
+                VelbusSetLocalClockAlarmPacket packet = new VelbusSetLocalClockAlarmPacket(
+                        getModuleAddress().getAddress(), alarmNumber, alarmClock);
+                byte[] packetBytes = packet.getBytes();
 
-            // Schedule the send of the packet to see if there is another update in less than 10 secondes (reduce
-            // flooding of the bus)
-            scheduler.schedule(() -> {
-                sendAlarmPacket(alarmNumber, packetBytes);
-            }, DELAY_SEND_CLOCK_ALARM_UPDATE, TimeUnit.MILLISECONDS);
+                // Schedule the send of the packet to see if there is another update in less than 10 secondes (reduce
+                // flooding of the bus)
+                scheduler.schedule(() -> {
+                    sendAlarmPacket(alarmNumber, packetBytes);
+                }, DELAY_SEND_CLOCK_ALARM_UPDATE, TimeUnit.MILLISECONDS);
+            }
         } else {
             logger.debug("The command '{}' is not supported by this handler.", command.getClass());
         }

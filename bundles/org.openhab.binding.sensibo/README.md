@@ -1,6 +1,6 @@
 # Sensibo Binding
 
-This binding integrates the Sensibo Sky aircondition remote control
+This binding integrates the Sensibo Sky air conditioner remote control.
 See <https://www.sensibo.com/>
 
 ## Supported Things
@@ -12,12 +12,12 @@ This binding supports Sensibo Sky only.
 
 ## Discovery
 
-In order to do discovery, add a thing of type Sensibo API and add the API key.
-API key can be obtained here: <https://home.sensibo.com/me/api>
+To perform discovery, add a Thing of type Sensibo API and provide the API key.
+An API key can be obtained here: <https://home.sensibo.com/me/api>.
 
 ## Thing Configuration
 
-See full example below for how to configure using thing files.
+See full example below for how to configure using Thing files.
 
 ### Account
 
@@ -73,10 +73,10 @@ sitemap:
 
 ```perl
 Switch item=AC_Office_Heater_MasterSwitch
-Selection item=AC_Office_Room_Mode 
+Selection item=AC_Office_Room_Mode
 Setpoint item=AC_Office_Room_Target_Temperature
 Selection item=AC_Office_Heater_Fan_Level
 Selection item=AC_Office_Room_Swing_Mode
-Text item=AC_Office_Room_Current_Temperature  
+Text item=AC_Office_Room_Current_Temperature
 Text item=AC_Office_Room_Current_Humidity
 ```

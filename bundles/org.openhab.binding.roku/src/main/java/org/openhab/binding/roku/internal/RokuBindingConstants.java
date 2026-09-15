@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -55,6 +55,8 @@ public class RokuBindingConstants {
     public static final String PLAY_MODE = "playMode";
     public static final String TIME_ELAPSED = "timeElapsed";
     public static final String TIME_TOTAL = "timeTotal";
+    public static final String END_TIME = "endTime";
+    public static final String PROGRESS = "progress";
     public static final String ACTIVE_CHANNEL = "activeChannel";
     public static final String SIGNAL_MODE = "signalMode";
     public static final String SIGNAL_QUALITY = "signalQuality";
@@ -84,4 +86,7 @@ public class RokuBindingConstants {
     public static final String TV_APP = "tvinput.dtv";
     public static final String TV_INPUT = "tvinput";
     public static final String POWER_ON = "POWERON";
+    public static final String POWER_OFF = "PowerOff";
+    public static final String OFFLINE = "Offline";
+    public static final String HOST_RESOLVE_ERROR_MSG = "Unable to resolve host name";
 }

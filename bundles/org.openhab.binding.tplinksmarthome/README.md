@@ -361,7 +361,7 @@ It is not possible to connect to devices on a different network using `deviceId`
 
 The thingId is the product type in lower case. For example `HS100` has thingId `hs100`.
 
-The thing can be configured by `ipAddress` or by `deviceId`.
+The Thing can be configured by `ipAddress` or by `deviceId`.
 If the one of them is used the other is automatically set by the binding.
 When manually configured it is preferred to set the `deviceId` because if the ip address of the device would change this will be automatically updated.
 The `deviceId` is the unique identifier each TP-Link device has.
@@ -374,7 +374,7 @@ With background discovery disabled the ip address, which is needed to communicat
 It will not update the ip address if background discovery is disabled and the ip address of the device changes.
 Manually starting a discovery can also be used to set the ip address directly instead of waiting for the 1 minute background discovery refresh period.
 
-The thing has the following configuration parameters:
+The Thing has the following configuration parameters:
 
 | Parameter          | Description                                                                                  |
 |--------------------|----------------------------------------------------------------------------------------------|
@@ -394,7 +394,7 @@ All devices support some of the following channels:
 | switch              | Switch                   | Power the device on or off.                    | EP10, EP25, EP40, HS100, HS103, HS105, HS107, HS110, HS200, HS210, HS300, KP100, KP105, KP115, KP200, KP303, KP400, KP401, KS230, RE270K, RE370K       |
 | brightness          | Dimmer                   | Set the brightness of device or dimmer.        | ES20M, HS220, KB100, KL50, KL60, KL110, KL120, KP405, LB100, LB110, LB120, LB200                                                                       |
 | colorTemperature    | Dimmer                   | Set the color temperature in percentage.       | KB130, KL120, KL125, KL130, KL135, KL400, KL430, LB120, LB130, LB230                                                                                   |
-| colorTemperatureAbs | Number                   | Set the color temperature in Kelvin.           | KB130, KL120, KL125, KL130, KL135, KL400, KL430, LB120, LB130, LB230                                                                                   |
+| colorTemperatureAbs | Number:Temperature       | Set the color temperature in Kelvin.           | KB130, KL120, KL125, KL130, KL135, KL400, KL430, LB120, LB130, LB230                                                                                   |
 | color               | Color                    | Set the color of the light.                    | KB130, KL125, KL130, KL135, KL400, KL430, LB130, LB230                                                                                                 |
 | power               | Number:Power             | Actual energy usage in Watt.                   | EP25, HS110, HS300, KLxxx, KP115, KP125, LBxxx,                                                                                                        |
 | eneryUsage          | Number:Energy            | Energy Usage in kWh.                           | EP25, HS110, HS300, KP115, KP125                                                                                                                       |
@@ -414,8 +414,8 @@ The following group ids are available:
 
 ### Channel Refresh
 
-When the thing receives a `RefreshType` command the channel state is updated from an internal cache.
-This cache is updated per refresh interval as configured in the thing.
+When the Thing receives a `RefreshType` command the channel state is updated from an internal cache.
+This cache is updated per refresh interval as configured in the Thing.
 However for some use cases it is preferable to set the refresh interval higher than the default.
 For example for switches the 1 second refresh interval may cause a burden to the network traffic.
 Therefore if the refresh interval for switches is set to a value higher than 5 seconds, and for the other devices higher than 1 minute.
@@ -423,7 +423,7 @@ Than the a `RefreshType` command will fetch the device state and update the inte
 
 ## Full Example
 
-### tplinksmarthome.things:
+### `tplinksmarthome.things` Example
 
 ```java
 tplinksmarthome:hs100:tv      "TV"                 [ deviceId="00000000000000000000000000000001", refresh=60 ]
@@ -433,7 +433,7 @@ tplinksmarthome:lb130:bulb2   "Living Room Bulb 2" [ deviceId="00000000000000000
 tplinksmarthome:kp401:outlet  "Outdoor Outlet"     [ ipAddress="192.168.1.101" ]
 ```
 
-### tplinksmarthome.items:
+### `tplinksmarthome.items` Example
 
 ```java
 Switch       TP_L_TV      "TV"                                 { channel="tplinksmarthome:hs100:tv:switch" }

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -26,6 +26,7 @@ public enum HomekitAccessoryType {
     ACCESSORY_GROUP("AccessoryGroup"),
     DUMMY("Dummy"),
 
+    AIR_PURIFIER("AirPurifier"),
     AIR_QUALITY_SENSOR("AirQualitySensor"),
     BASIC_FAN("BasicFan"),
     BATTERY("Battery"),
@@ -33,6 +34,7 @@ public enum HomekitAccessoryType {
     CARBON_MONOXIDE_SENSOR("CarbonMonoxideSensor"),
     CONTACT_SENSOR("ContactSensor"),
     DOOR("Door"),
+    DOORBELL("Doorbell"),
     FAN("Fan"),
     FAUCET("Faucet"),
     FILTER_MAINTENANCE("Filter"),

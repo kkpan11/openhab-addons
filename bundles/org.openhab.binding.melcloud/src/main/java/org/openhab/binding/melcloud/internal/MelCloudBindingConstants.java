@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.core.thing.ThingTypeUID;
 
 /**
@@ -25,7 +26,9 @@ import org.openhab.core.thing.ThingTypeUID;
  *
  * @author Luca Calcaterra - Initial contribution
  * @author Wietse van Buitenen - Added heatpump device
+ * @author Alessio Galliazzo - Added heatpump functionalities for flow temperature and temperature control
  */
+@NonNullByDefault
 public class MelCloudBindingConstants {
 
     private static final String BINDING_ID = "melcloud";
@@ -40,14 +43,23 @@ public class MelCloudBindingConstants {
     // List of all Channel ids
     public static final String CHANNEL_POWER = "power";
     public static final String CHANNEL_OPERATION_MODE = "operationMode";
+    public static final String CHANNEL_OPERATION_MODE_STRING = "operationModeString";
     public static final String CHANNEL_SET_TEMPERATURE = "setTemperature";
     public static final String CHANNEL_FAN_SPEED = "fanSpeed";
     public static final String CHANNEL_VANE_HORIZONTAL = "vaneHorizontal";
     public static final String CHANNEL_VANE_VERTICAL = "vaneVertical";
     public static final String CHANNEL_SET_TEMPERATURE_ZONE1 = "setTemperatureZone1";
     public static final String CHANNEL_ROOM_TEMPERATURE_ZONE1 = "roomTemperatureZone1";
+    public static final String CHANNEL_SET_TEMPERATURE_ZONE2 = "setTemperatureZone2";
+    public static final String CHANNEL_ROOM_TEMPERATURE_ZONE2 = "roomTemperatureZone2";
     public static final String CHANNEL_FORCED_HOTWATERMODE = "forcedHotWaterMode";
     public static final String CHANNEL_TANKWATERTEMPERATURE = "tankWaterTemperature";
+    public static final String CHANNEL_TANK_TARGET_WATER_TEMPERATURE = "tankTargetWaterTemperature";
+
+    public static final String CHANNEL_HEAT_TEMPERATURE_MODE_ZONE1 = "heatTemperatureModeZone1";
+    public static final String CHANNEL_HEAT_FLOW_TEMPERATURE_ZONE1 = "heatFlowTemperatureZone1";
+    public static final String CHANNEL_HEAT_TEMPERATURE_MODE_ZONE2 = "heatTemperatureModeZone2";
+    public static final String CHANNEL_HEAT_FLOW_TEMPERATURE_ZONE2 = "heatFlowTemperatureZone2";
 
     // Read Only Channels
     public static final String CHANNEL_ROOM_TEMPERATURE = "roomTemperature";

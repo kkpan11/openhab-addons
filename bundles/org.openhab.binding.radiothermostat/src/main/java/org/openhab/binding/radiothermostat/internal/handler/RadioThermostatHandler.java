@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -39,7 +39,7 @@ import org.openhab.binding.radiothermostat.internal.dto.RadioThermostatDTO;
 import org.openhab.binding.radiothermostat.internal.dto.RadioThermostatHumidityDTO;
 import org.openhab.binding.radiothermostat.internal.dto.RadioThermostatRuntimeDTO;
 import org.openhab.binding.radiothermostat.internal.dto.RadioThermostatTstatDTO;
-import org.openhab.binding.radiothermostat.internal.util.RadioThermostatScheduleJson;
+import org.openhab.binding.radiothermostat.internal.util.RadioThermostatSchedule;
 import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
@@ -83,6 +83,7 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
     private final Gson gson;
     private final RadioThermostatConnector connector;
     private final RadioThermostatDTO rthermData = new RadioThermostatDTO();
+    private @Nullable RadioThermostatSchedule thermostatSchedule;
 
     private @Nullable ScheduledFuture<?> refreshJob;
     private @Nullable ScheduledFuture<?> logRefreshJob;
@@ -93,6 +94,7 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
     private boolean isCT80 = false;
     private boolean disableLogs = false;
     private boolean clockSync = false;
+    private boolean remoteTempDeadband = false;
     private String setpointCmdKeyPrefix = "t_";
     private String heatProgramJson = BLANK;
     private String coolProgramJson = BLANK;
@@ -116,6 +118,7 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
         this.isCT80 = config.isCT80;
         this.disableLogs = config.disableLogs;
         this.clockSync = config.clockSync;
+        this.remoteTempDeadband = config.remoteTempDeadband;
 
         if (hostName == null || hostName.isBlank()) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
@@ -151,19 +154,21 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
             updateThing(editThing().withChannels(channels).build());
         }
 
-        final RadioThermostatScheduleJson thermostatSchedule = new RadioThermostatScheduleJson(config);
+        final RadioThermostatSchedule localSchedule = thermostatSchedule = new RadioThermostatSchedule(config);
 
         try {
-            heatProgramJson = thermostatSchedule.getHeatProgramJson();
+            heatProgramJson = localSchedule.getHeatProgramJson();
         } catch (IllegalStateException e) {
+            logger.debug("Invalid HEATING program schedule: {}", e.getMessage());
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
                     "@text/offline.configuration-error-heating-program");
             return;
         }
 
         try {
-            coolProgramJson = thermostatSchedule.getCoolProgramJson();
+            coolProgramJson = localSchedule.getCoolProgramJson();
         } catch (IllegalStateException e) {
+            logger.debug("Invalid COOLING program schedule: {}", e.getMessage());
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
                     "@text/offline.configuration-error-cooling-program");
             return;
@@ -336,7 +341,7 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
             updateChannel(channelUID.getId(), rthermData);
         } else {
             Integer cmdInt = -1;
-            String cmdStr = command.toString();
+            final String cmdStr = command.toString();
             try {
                 // parse out an Integer from the string
                 // ie '70.5 F' becomes 70, also handles negative numbers
@@ -359,6 +364,8 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
                         updateChannel(SET_POINT, rthermData);
                         rthermData.getThermostatData().setHold(0);
                         updateChannel(HOLD, rthermData);
+                        updateChannel(NEXT_TEMP, rthermData);
+                        updateChannel(NEXT_TIME, rthermData);
                         rthermData.getThermostatData().setProgramMode(-1);
                         updateChannel(PROGRAM_MODE, rthermData);
 
@@ -383,9 +390,11 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
                         rthermData.getThermostatData().setHold(0);
                         connector.sendCommand("hold", "0", DEFAULT_RESOURCE);
                     }
+                    updateChannel(NEXT_TEMP, rthermData);
+                    updateChannel(NEXT_TIME, rthermData);
                     break;
                 case SET_POINT:
-                    String cmdKey;
+                    final String cmdKey;
                     if (rthermData.getThermostatData().getMode() == 1) {
                         cmdKey = this.setpointCmdKeyPrefix + "heat";
                         rthermData.getThermostatData().setHeatTarget(Double.valueOf(cmdInt));
@@ -402,9 +411,12 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
                     break;
                 case REMOTE_TEMP:
                     if (cmdInt != -1) {
-                        QuantityType<?> remoteTemp = ((QuantityType<Temperature>) command)
+                        final QuantityType<Temperature> remoteTemp = ((QuantityType<Temperature>) command)
                                 .toUnit(ImperialUnits.FAHRENHEIT);
-                        connector.sendCommand("rem_temp", String.valueOf(remoteTemp.intValue()), REMOTE_TEMP_RESOURCE);
+                        if (remoteTemp != null) {
+                            connector.sendCommand("rem_temp", handleRemoteTempDeadband(remoteTemp),
+                                    REMOTE_TEMP_RESOURCE);
+                        }
                     } else {
                         connector.sendCommand("rem_mode", "0", REMOTE_TEMP_RESOURCE);
                     }
@@ -431,8 +443,8 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
     public void onNewMessageEvent(RadioThermostatEvent event) {
         logger.debug("onNewMessageEvent: key {} = {}", event.getKey(), event.getValue());
 
-        String evtKey = event.getKey();
-        String evtVal = event.getValue();
+        final String evtKey = event.getKey();
+        final String evtVal = event.getValue();
 
         if (KEY_ERROR.equals(evtKey)) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR,
@@ -450,7 +462,7 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
                     }
                     break;
                 case HUMIDITY_RESOURCE:
-                    RadioThermostatHumidityDTO dto = gson.fromJson(evtVal, RadioThermostatHumidityDTO.class);
+                    final RadioThermostatHumidityDTO dto = gson.fromJson(evtVal, RadioThermostatHumidityDTO.class);
                     // if thermostat returned -1 for humidity, skip this update
                     if (dto != null && dto.getHumidity() >= 0) {
                         rthermData.setHumidity(dto.getHumidity());
@@ -475,9 +487,9 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
      */
     private void updateChannel(String channelId, RadioThermostatDTO rthermData) {
         if (isLinked(channelId)) {
-            Object value;
+            final Object value;
             try {
-                value = getValue(channelId, rthermData);
+                value = getValue(channelId, rthermData, thermostatSchedule);
             } catch (Exception e) {
                 logger.debug("Error setting {} value", channelId.toUpperCase());
                 return;
@@ -519,7 +531,8 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
      * @param data the RadioThermostat dto
      * @return the value to be set in the state
      */
-    public static @Nullable Object getValue(String channelId, RadioThermostatDTO data) {
+    public static @Nullable Object getValue(String channelId, RadioThermostatDTO data,
+            @Nullable RadioThermostatSchedule thermostatSchedule) {
         switch (channelId) {
             case TEMPERATURE:
                 if (data.getThermostatData().getTemperature() != null) {
@@ -576,6 +589,22 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
             case YESTERDAY_COOL_RUNTIME:
                 return new QuantityType<>(data.getRuntime().getYesterday().getCoolTime().getRuntime(),
                         API_MINUTES_UNIT);
+            case NEXT_TEMP:
+                if (thermostatSchedule != null) {
+                    final Integer nextTemp = thermostatSchedule.getNextTemp(data.getThermostatData());
+                    if (nextTemp != null) {
+                        return new QuantityType<>(nextTemp, API_TEMPERATURE_UNIT);
+                    }
+                }
+                return null;
+            case NEXT_TIME:
+                if (thermostatSchedule != null) {
+                    final ZonedDateTime nextTime = thermostatSchedule.getNextTime(data.getThermostatData());
+                    if (nextTime != null) {
+                        return nextTime;
+                    }
+                }
+                return null;
         }
         return null;
     }
@@ -598,7 +627,7 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
      * @return list of state options for thermostat fan modes
      */
     private List<StateOption> getFanModeOptions() {
-        List<StateOption> fanModeOptions = new ArrayList<>();
+        final List<StateOption> fanModeOptions = new ArrayList<>(this.isCT80 ? 3 : 2);
 
         fanModeOptions.add(new StateOption("0", "@text/options.fan-option-auto"));
         if (this.isCT80) {
@@ -607,5 +636,32 @@ public class RadioThermostatHandler extends BaseThingHandler implements RadioThe
         fanModeOptions.add(new StateOption("2", "@text/options.fan-option-on"));
 
         return fanModeOptions;
+    }
+
+    private String handleRemoteTempDeadband(QuantityType<Temperature> remoteTemp) {
+        if (!this.remoteTempDeadband) {
+            return String.valueOf(remoteTemp.intValue());
+        }
+
+        final int remoteTempRounded;
+        final boolean isHeatModeOff = Integer.valueOf(1).equals(rthermData.getThermostatData().getMode())
+                && Integer.valueOf(0).equals(rthermData.getThermostatData().getStatus());
+        final boolean isCoolModeOff = Integer.valueOf(2).equals(rthermData.getThermostatData().getMode())
+                && Integer.valueOf(0).equals(rthermData.getThermostatData().getStatus());
+
+        // hvac heating on OR hvac off in cooling mode, round temperature down, e.g. 69.5 = 69
+        if (Integer.valueOf(1).equals(rthermData.getThermostatData().getStatus()) || isCoolModeOff) {
+            remoteTempRounded = (int) Math.floor(remoteTemp.doubleValue());
+            logger.debug("remote temp: {}, rounding down to {}", remoteTemp, remoteTempRounded);
+        } else if (Integer.valueOf(2).equals(rthermData.getThermostatData().getStatus()) || isHeatModeOff) {
+            // hvac cooling on OR hvac off in heat mode, round temperature up, e.g. 69.1 = 70
+            remoteTempRounded = (int) Math.ceil(remoteTemp.doubleValue());
+            logger.debug("remote temp: {}, rounding up to {}", remoteTemp, remoteTempRounded);
+        } else {
+            // hvac mode off (or unknown), round temperature, e.g. 69.5 = 70
+            remoteTempRounded = (int) Math.round(remoteTemp.doubleValue());
+            logger.debug("remote temp: {}, rounding to {}", remoteTemp, remoteTempRounded);
+        }
+        return String.valueOf(remoteTempRounded);
     }
 }

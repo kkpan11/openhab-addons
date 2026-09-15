@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,7 +12,10 @@
  */
 package org.openhab.binding.chatgpt.internal;
 
+import static org.openhab.binding.chatgpt.internal.ChatGPTBindingConstants.*;
+
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 
 /**
  * The {@link ChatGPTConfiguration} class contains fields mapping thing configuration parameters.
@@ -21,8 +24,18 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
  */
 @NonNullByDefault
 public class ChatGPTConfiguration {
-
+    // API
+    public String baseUrl = DEFAULT_BASE_URL;
+    // Kept for backward compatibility
+    public @Nullable String apiUrl;
     public String apiKey = "";
-    public String apiUrl = "https://api.openai.com/v1/chat/completions";
-    public String modelUrl = "https://api.openai.com/v1/models";
+    // Connection
+    public Integer requestTimeout = DEFAULT_REQUEST_TIMEOUT;
+    // HLI
+    public String model = DEFAULT_MODEL;
+    public Double temperature = DEFAULT_TEMPERATURE;
+    public Double topP = DEFAULT_TOP_P;
+    public Integer maxTokens = DEFAULT_MAX_TOKENS;
+    public Integer maxModelTurns = DEFAULT_MAX_MODEL_TURNS;
+    public String reasoningEffort = DEFAULT_REASONING_EFFORT;
 }

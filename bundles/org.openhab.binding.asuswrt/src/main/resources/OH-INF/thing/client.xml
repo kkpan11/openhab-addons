@@ -12,6 +12,8 @@
 
 		<label>Asuswrt Client</label>
 		<description>Client connected to Asuswrt-Router</description>
+		<semantic-equipment-tag>NetworkAppliance</semantic-equipment-tag>
+
 		<channel-groups>
 			<channel-group id="network-info" typeId="clientNetworkGroup"></channel-group>
 			<channel-group id="traffic" typeId="traffic-group"></channel-group>
@@ -24,6 +26,7 @@
 
 		<config-description>
 			<parameter name="macAddress" type="text" required="true">
+				<context>mac-address</context>
 				<label>MAC Address</label>
 				<description>MAC address of the device</description>
 				<default>00:00:00:00:00:00</default>

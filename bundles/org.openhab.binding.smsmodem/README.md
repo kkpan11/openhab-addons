@@ -6,13 +6,20 @@ Serial modem should all use the same communication protocol (AT message) and the
 However, there is a gap between theory and reality and success may vary.
 The protocol stack is based on the no longer supported smslib project (more precisely a v4 fork), and all modems supported by this library should be OK.
 
-The following devices have been reported functional :
+The following devices have been reported functional:
 
 - Huawei E180
+- Huawei E173
+- Huawei E1550
+- Huawei E272
+
+Devices that are reported to have issues:
+
+- Huawei E303C
 
 ## Supported Things
 
-Two things are supported by this binding :
+Two things are supported by this binding:
 
 - A _smsmodembridge_, representing the dongle connected on the local computer
 - A _smsmodemremotebridge_, representing the dongle exposed over the network (with ser2net or other similar software)
@@ -20,8 +27,8 @@ Two things are supported by this binding :
 
 ## Discovery
 
-There is no discovery process for _smsmodembridge_ or _smsmodemremotebridge_ thing.
-A _smsconversation_ thing will be discovered and added to the inbox everytime the modem should receive a SMS by a new sender.
+There is no discovery process for _smsmodembridge_ or _smsmodemremotebridge_ Thing.
+A _smsconversation_ Thing will be discovered and added to the inbox everytime the modem should receive a SMS by a new sender.
 
 ## Thing Configuration
 
@@ -41,7 +48,7 @@ For remote _smsmodemremotebridge_:
 | ip             | text    | IP address of the computer hosting the ser2net service |
 | networkPort    | integer | The network port of the ser2net service                |
 
-The other parameters are optional :
+The other parameters are optional:
 
 | Parameter Name   | type    | description                                                                                  |
 | ---------------- | ------- | -------------------------------------------------------------------------------------------- |
@@ -49,7 +56,7 @@ The other parameters are optional :
 | pollingInterval  | integer | Delay between two checks for new message (in seconds)                                        |
 | delayBetweenSend | integer | Delay to wait between two messages post (in milliseconds, could be necessary for slow modem) |
 
-The _smsconversation_ thing is just a shortcut to address/receive messages with a specific msisdn. It is not mandatory to use the binding, as you can use action and trigger channel to send/receive a message once the smsmodem bridge is configured.
+The _smsconversation_ Thing is just a shortcut to address/receive messages with a specific msisdn. It is not mandatory to use the binding, as you can use action and trigger channel to send/receive a message once the smsmodem bridge is configured.
 
 | Parameter Name | type    | description                                                                                                                                                                                  |
 | -------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -59,7 +66,8 @@ The _smsconversation_ thing is just a shortcut to address/receive messages with 
 
 ## Channels
 
-The _smsconversation_ supports the following channels :
+The _smsconversation_ supports the following channels:
+
 | channel        | type   | description                                                                                                                                                          |
 | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | receive        | String | The last message received                                                                                                                                            |
@@ -68,7 +76,8 @@ The _smsconversation_ supports the following channels :
 
 ## Trigger channels
 
-The _smsmodembridge_ and _smsmodemremotebridge_ has the following trigger channel :
+The _smsmodembridge_ and _smsmodemremotebridge_ has the following trigger channel:
+
 | Channel ID     | event                                                                               |
 | -------------- | ----------------------------------------------------------------------------------- |
 | receivetrigger | The msisdn and message received (concatened with the '\|' character as a separator) |
@@ -87,7 +96,7 @@ val smsAction = getActions("smsmodem","smsmodem:smsmodembridge:<uid>")
 var smsAction = actions.get("smsmodem","smsmodem:smsmodembridge:<uid>");
 ```
 
-Where uid is the Bridge UID of the _smsmodembridge_ thing.
+Where uid is the Bridge UID of the _smsmodembridge_ Thing.
 
 Once this action instance is retrieved, you can invoke the 'send' method on it:
 
@@ -129,7 +138,7 @@ end
 
 ### Receive and forward SMS
 
-`sms.py` with the python helper library :
+`sms.py` with the python helper library:
 
 ```python
 @rule("smscommand.receive", description="Receive SMS and resend it")

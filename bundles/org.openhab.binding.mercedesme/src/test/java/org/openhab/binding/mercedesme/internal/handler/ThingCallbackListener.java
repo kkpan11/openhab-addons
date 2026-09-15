@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,13 +12,15 @@
  */
 package org.openhab.binding.mercedesme.internal.handler;
 
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -52,10 +54,15 @@ public class ThingCallbackListener implements ThingHandlerCallback {
     public Map<String, State> updatesReceived = new HashMap<>();
     public Map<String, Map<String, State>> updatesPerGroupMap = new HashMap<>();
     public boolean linked = false;
-    public Optional<ThingStatusInfo> status = Optional.empty();
+    private @Nullable ThingStatusInfo status;
+    private Instant waitTime = Instant.MAX;
 
     public ThingStatusInfo getThingStatus() {
-        return status.get();
+        ThingStatusInfo localStatus = status;
+        if (localStatus == null) {
+            throw new IllegalStateException("No status update received yet");
+        }
+        return localStatus;
     }
 
     public int getUpdatesForGroup(String group) {
@@ -78,6 +85,24 @@ public class ThingCallbackListener implements ThingHandlerCallback {
             }
         }
         groupMap.put(channelUID.toString(), state);
+        synchronized (updatesReceived) {
+            waitTime = Instant.now().plus(500, ChronoUnit.MILLIS);
+        }
+    }
+
+    public void waitForUpdates() {
+        Instant maxWaitTime = Instant.now().plus(5000, ChronoUnit.MILLIS);
+        synchronized (updatesReceived) {
+            while (Instant.now().isBefore(maxWaitTime) && waitTime.isAfter(Instant.now())) {
+                try {
+                    updatesReceived.wait(50);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    fail();
+                }
+            }
+        }
+        waitTime = Instant.MAX;
     }
 
     @Override
@@ -86,7 +111,7 @@ public class ThingCallbackListener implements ThingHandlerCallback {
 
     @Override
     public void statusUpdated(Thing thing, ThingStatusInfo thingStatus) {
-        status = Optional.of(thingStatus);
+        status = thingStatus;
     }
 
     @Override

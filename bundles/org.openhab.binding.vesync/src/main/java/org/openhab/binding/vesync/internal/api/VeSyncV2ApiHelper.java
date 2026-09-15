@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,7 +12,7 @@
  */
 package org.openhab.binding.vesync.internal.api;
 
-import static org.openhab.binding.vesync.internal.dto.requests.VeSyncProtocolConstants.*;
+import static org.openhab.binding.vesync.internal.dto.requests.ProtocolConstants.*;
 
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
@@ -35,15 +35,13 @@ import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.util.StringContentProvider;
 import org.eclipse.jetty.http.HttpHeader;
 import org.openhab.binding.vesync.internal.VeSyncConstants;
-import org.openhab.binding.vesync.internal.dto.requests.VeSyncAuthenticatedRequest;
-import org.openhab.binding.vesync.internal.dto.requests.VeSyncLoginCredentials;
-import org.openhab.binding.vesync.internal.dto.requests.VeSyncRequestManagedDeviceBypassV2;
-import org.openhab.binding.vesync.internal.dto.requests.VeSyncRequestManagedDevicesPage;
-import org.openhab.binding.vesync.internal.dto.responses.VeSyncLoginResponse;
-import org.openhab.binding.vesync.internal.dto.responses.VeSyncManagedDeviceBase;
-import org.openhab.binding.vesync.internal.dto.responses.VeSyncManagedDevicesPage;
-import org.openhab.binding.vesync.internal.dto.responses.VeSyncResponse;
-import org.openhab.binding.vesync.internal.dto.responses.VeSyncUserSession;
+import org.openhab.binding.vesync.internal.dto.requests.login.AuthenticatedReq;
+import org.openhab.binding.vesync.internal.dto.requests.management.DevicesInfoPageReq;
+import org.openhab.binding.vesync.internal.dto.requests.v2.rev2.ManagedDeviceBypassReq;
+import org.openhab.binding.vesync.internal.dto.responses.TransactionResp;
+import org.openhab.binding.vesync.internal.dto.responses.login.UserSession;
+import org.openhab.binding.vesync.internal.dto.responses.management.DeviceInfo;
+import org.openhab.binding.vesync.internal.dto.responses.management.DevicesInfoPageResp;
 import org.openhab.binding.vesync.internal.exceptions.AuthenticationException;
 import org.openhab.binding.vesync.internal.exceptions.DeviceUnknownException;
 import org.openhab.binding.vesync.internal.handlers.VeSyncBridgeHandler;
@@ -58,27 +56,26 @@ public class VeSyncV2ApiHelper {
 
     private final Logger logger = LoggerFactory.getLogger(VeSyncV2ApiHelper.class);
 
-    private @NonNullByDefault({}) HttpClient httpClient;
+    protected static final int RESPONSE_TIMEOUT_SEC = 5;
 
-    private volatile @Nullable VeSyncUserSession loggedInSession;
+    private volatile @Nullable UserSession loggedInSession;
 
-    private Map<String, @NotNull VeSyncManagedDeviceBase> macLookup;
+    private final @Nullable HttpClient httpClient;
 
-    public VeSyncV2ApiHelper() {
+    private Map<String, @NotNull DeviceInfo> macLookup;
+
+    public VeSyncV2ApiHelper(final HttpClient httpClient) {
+        this.httpClient = httpClient;
         macLookup = new HashMap<>();
     }
 
-    public Map<String, @NotNull VeSyncManagedDeviceBase> getMacLookupMap() {
+    public Map<String, @NotNull DeviceInfo> getMacLookupMap() {
         return macLookup;
     }
 
-    /**
-     * Sets the httpClient object to be used for API calls to Vesync.
-     *
-     * @param httpClient the client to be used.
-     */
-    public void setHttpClient(@Nullable HttpClient httpClient) {
-        this.httpClient = httpClient;
+    public void dispose() {
+        loggedInSession = null;
+        macLookup = new HashMap<>();
     }
 
     public static @NotNull String calculateMd5(final @Nullable String password) {
@@ -101,25 +98,25 @@ public class VeSyncV2ApiHelper {
 
     public void discoverDevices() throws AuthenticationException {
         try {
-            VeSyncRequestManagedDevicesPage reqDevPage = new VeSyncRequestManagedDevicesPage(loggedInSession);
+            DevicesInfoPageReq reqDevPage = new DevicesInfoPageReq(loggedInSession);
             boolean finished = false;
             int pageNo = 1;
-            HashMap<String, VeSyncManagedDeviceBase> generatedMacLookup = new HashMap<>();
+            HashMap<String, DeviceInfo> generatedMacLookup = new HashMap<>();
             while (!finished) {
                 reqDevPage.pageNo = String.valueOf(pageNo);
                 reqDevPage.pageSize = String.valueOf(100);
                 final String result = reqV1Authorized(V1_MANAGED_DEVICES_ENDPOINT, reqDevPage);
 
-                VeSyncManagedDevicesPage resultsPage = VeSyncConstants.GSON.fromJson(result,
-                        VeSyncManagedDevicesPage.class);
-                if (resultsPage == null || !resultsPage.outcome.getTotal().equals(resultsPage.outcome.getPageSize())) {
+                DevicesInfoPageResp resultsPage = VeSyncConstants.GSON.fromJson(result, DevicesInfoPageResp.class);
+                if (resultsPage == null || resultsPage.outcome == null
+                        || !resultsPage.outcome.getTotal().equals(resultsPage.outcome.getPageSize())) {
                     finished = true;
                 } else {
                     ++pageNo;
                 }
 
-                if (resultsPage != null) {
-                    for (VeSyncManagedDeviceBase device : resultsPage.outcome.list) {
+                if (resultsPage != null && resultsPage.outcome != null && resultsPage.outcome.list != null) {
+                    for (DeviceInfo device : resultsPage.outcome.list) {
                         logger.debug(
                                 "Found device : {}, type: {}, deviceType: {}, connectionState: {}, deviceStatus: {}, deviceRegion: {}, cid: {}, configModule: {}, macID: {}, uuid: {}",
                                 device.getDeviceName(), device.getType(), device.getDeviceType(),
@@ -133,53 +130,75 @@ public class VeSyncV2ApiHelper {
             }
             macLookup = Collections.unmodifiableMap(generatedMacLookup);
         } catch (final AuthenticationException ae) {
-            logger.warn("Failed background device scan : {}", ae.getMessage());
+            logger.debug("Failed background device scan : {}", ae.getMessage());
             throw ae;
         }
     }
 
-    public String reqV2Authorized(final String url, final String macId, final VeSyncAuthenticatedRequest requestData)
+    public String reqV2Authorized(String url, final String macId, final AuthenticatedReq requestData)
             throws AuthenticationException, DeviceUnknownException {
         if (loggedInSession == null) {
             throw new AuthenticationException("User is not logged in");
         }
+
+        @Nullable
+        UserSession session = loggedInSession;
+        if (session != null && session.serverUrl != null) {
+            url = session.serverUrl + url;
+        } else {
+            url = US_SERVER + url; // Fallback
+        }
+
         // Apply current session authentication data
         requestData.applyAuthentication(loggedInSession);
 
         // Apply specific addressing parameters
-        if (requestData instanceof VeSyncRequestManagedDeviceBypassV2 veSyncRequestManagedDeviceBypassV2) {
-            final VeSyncManagedDeviceBase deviceData = macLookup.get(macId);
+        if (requestData instanceof ManagedDeviceBypassReq veSyncRequestManagedDeviceBypassV2) {
+            final DeviceInfo deviceData = macLookup.get(macId);
             if (deviceData == null) {
                 throw new DeviceUnknownException(String.format("Device not discovered with mac id: %s", macId));
             }
             veSyncRequestManagedDeviceBypassV2.cid = deviceData.cid;
             veSyncRequestManagedDeviceBypassV2.configModule = deviceData.configModule;
+            veSyncRequestManagedDeviceBypassV2.configModel = deviceData.configModule;
             veSyncRequestManagedDeviceBypassV2.deviceRegion = deviceData.deviceRegion;
         }
         return reqV1Authorized(url, requestData);
     }
 
-    public String reqV1Authorized(final String url, final VeSyncAuthenticatedRequest requestData)
-            throws AuthenticationException {
+    public String reqV1Authorized(final String url, final AuthenticatedReq requestData) throws AuthenticationException {
         return directReqV1Authorized(url, requestData);
     }
 
-    private String directReqV1Authorized(final String url, final VeSyncAuthenticatedRequest requestData)
+    private String directReqV1Authorized(String url, final AuthenticatedReq requestData)
             throws AuthenticationException {
         try {
-            Request request = httpClient.POST(url);
+            final HttpClient client = httpClient;
+            if (client == null) {
+                throw new AuthenticationException("No HTTP Client");
+            }
+
+            @Nullable
+            UserSession session = loggedInSession;
+            if (session != null && session.serverUrl != null && !url.startsWith(session.serverUrl)) {
+                url = session.serverUrl + url;
+            }
+
+            Request request = client.newRequest(url).method(requestData.httpMethod).timeout(RESPONSE_TIMEOUT_SEC,
+                    TimeUnit.SECONDS);
 
             // No headers for login
             request.content(new StringContentProvider(VeSyncConstants.GSON.toJson(requestData)));
 
-            logger.debug("POST @ {} with content\r\n{}", url, VeSyncConstants.GSON.toJson(requestData));
+            logger.debug("{} @ {} with content\r\n{}", requestData.httpMethod, url,
+                    VeSyncConstants.GSON.toJson(requestData));
 
             request.header(HttpHeader.CONTENT_TYPE, "application/json; utf-8");
 
-            ContentResponse response = request.timeout(5, TimeUnit.SECONDS).send();
+            ContentResponse response = request.send();
             if (response.getStatus() == HttpURLConnection.HTTP_OK) {
-                VeSyncResponse commResponse = VeSyncConstants.GSON.fromJson(response.getContentAsString(),
-                        VeSyncResponse.class);
+                TransactionResp commResponse = VeSyncConstants.GSON.fromJson(response.getContentAsString(),
+                        TransactionResp.class);
 
                 if (commResponse != null && (commResponse.isMsgSuccess() || commResponse.isMsgDeviceOffline())) {
                     logger.debug("Got OK response {}", response.getContentAsString());
@@ -206,7 +225,7 @@ public class VeSyncV2ApiHelper {
             return;
         }
         try {
-            loggedInSession = processLogin(username, password, timezone).getUserSession();
+            loggedInSession = processLoginAuthV2(username, password, timezone);
         } catch (final AuthenticationException ae) {
             loggedInSession = null;
             throw ae;
@@ -217,32 +236,25 @@ public class VeSyncV2ApiHelper {
         bridge.handleNewUserSession(loggedInSession);
     }
 
-    private VeSyncLoginResponse processLogin(String username, String password, String timezone)
+    private UserSession processLoginAuthV2(String username, String password, String timezone)
             throws AuthenticationException {
         try {
-            Request request = httpClient.POST(V1_LOGIN_ENDPOINT);
-
-            // No headers for login
-            request.content(new StringContentProvider(
-                    VeSyncConstants.GSON.toJson(new VeSyncLoginCredentials(username, password))));
-
-            request.header(HttpHeader.CONTENT_TYPE, "application/json; utf-8");
-
-            ContentResponse response = request.timeout(5, TimeUnit.SECONDS).send();
-            if (response.getStatus() == HttpURLConnection.HTTP_OK) {
-                VeSyncLoginResponse loginResponse = VeSyncConstants.GSON.fromJson(response.getContentAsString(),
-                        VeSyncLoginResponse.class);
-                if (loginResponse != null && loginResponse.isMsgSuccess()) {
-                    logger.debug("Login successful");
-                    return loginResponse;
-                } else {
-                    throw new AuthenticationException("Invalid / unexpected JSON response from login");
-                }
-            } else {
-                logger.warn("Login Failed - HTTP Response Code: {} - {}", response.getStatus(), response.getReason());
-                throw new AuthenticationException(
-                        "HTTP response " + response.getStatus() + " - " + response.getReason());
+            final HttpClient client = httpClient;
+            if (client == null) {
+                throw new AuthenticationException("No HTTP Client");
             }
+
+            final LoginAuthV2Helper loginHelper = new LoginAuthV2Helper(client);
+
+            if (!loginHelper.requestAuthToken(username, password)) {
+                // We can't continue if we don't have the authorizeCode parameter
+                throw new AuthenticationException("Invalid username or password");
+            }
+
+            if (!loginHelper.loginByAuthorizeCode()) {
+                throw new AuthenticationException("Invalid username or password");
+            }
+            return loginHelper.getUserSession();
         } catch (InterruptedException | TimeoutException | ExecutionException e) {
             throw new AuthenticationException(e);
         }

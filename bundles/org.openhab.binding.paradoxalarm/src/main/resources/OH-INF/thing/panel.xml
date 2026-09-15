@@ -11,6 +11,7 @@
 
 		<label>Paradox Panel</label>
 		<description>Paradox panel various information</description>
+		<semantic-equipment-tag>AlarmSystem</semantic-equipment-tag>
 
 		<channels>
 			<channel id="state" typeId="panelState"/>
@@ -18,6 +19,22 @@
 			<channel id="boardVoltage" typeId="voltage"/>
 			<channel id="batteryVoltage" typeId="voltage"/>
 			<channel id="panelTime" typeId="panelTime"/>
+			<channel id="acTrouble" typeId="troubleFlag">
+				<label>AC Trouble</label>
+				<description>AC power supply failure</description>
+			</channel>
+			<channel id="batteryTrouble" typeId="troubleFlag">
+				<label>Battery Trouble</label>
+				<description>Backup battery failure</description>
+			</channel>
+			<channel id="moduleSupervisionTrouble" typeId="troubleFlag">
+				<label>Module Supervision Trouble</label>
+				<description>A bus module has lost supervision</description>
+			</channel>
+			<channel id="communicationTrouble" typeId="troubleFlag">
+				<label>Communication Trouble</label>
+				<description>PC/reporting communication failure</description>
+			</channel>
 		</channels>
 		<properties>
 			<property name="serialNumber"/>
@@ -25,6 +42,7 @@
 			<property name="hardwareVersion"/>
 			<property name="applicationVersion"/>
 			<property name="bootloaderVersion"/>
+			<property name="thingTypeVersion">1</property>
 		</properties>
 	</thing-type>
 
@@ -68,13 +86,30 @@
 		<item-type>Number:ElectricPotential</item-type>
 		<label>Voltage</label>
 		<description>Voltage</description>
+		<tags>
+			<tag>Measurement</tag>
+			<tag>Voltage</tag>
+		</tags>
 		<state readOnly="true" pattern="%f %unit%"/>
 	</channel-type>
 	<channel-type id="panelTime">
 		<item-type>DateTime</item-type>
 		<label>Date</label>
 		<description>The current date and time on the panel</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Timestamp</tag>
+		</tags>
 		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="troubleFlag">
+		<item-type>Switch</item-type>
+		<label>Trouble Flag</label>
+		<description>Panel system trouble indicator</description>
+		<tags>
+			<tag>Alarm</tag>
+		</tags>
+		<state readOnly="true" pattern="%s"/>
 	</channel-type>
 
 </thing:thing-descriptions>

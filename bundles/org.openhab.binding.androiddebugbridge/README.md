@@ -1,5 +1,9 @@
 # Android Debug Bridge Binding
 
+:::warning
+Enabling debugging over the network on your Android device can pose a serious security risk, potentially allowing unauthorized access to your device and other devices on your network.
+:::
+
 This binding allows to connect to android devices through the adb protocol.
 
 The device needs to have **usb debugging enabled** and **allow debugging over tcp**, some devices allow to enable this in the device options but others need a previous connection through adb or even be rooted.
@@ -8,7 +12,7 @@ If you are not familiar with adb I suggest you to search "How to enable adb over
 
 ## Supported Things
 
-This binding was tested on :
+This binding was tested on:
 
 | Device                 | Android version | Comments                           |
 |------------------------|-----------------|------------------------------------|
@@ -152,7 +156,7 @@ This is a sample:
 
 Not all the [arguments](https://developer.android.com/studio/command-line/adb#IntentSpec) are supported. Please open an issue or pull request if you need more.
 
-### Available key-event values:
+### Available key-event values
 
 - KEYCODE_0
 - KEYCODE_1

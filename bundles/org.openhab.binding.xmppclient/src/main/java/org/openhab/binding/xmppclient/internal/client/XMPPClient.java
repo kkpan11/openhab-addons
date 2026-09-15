@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -37,8 +37,11 @@ import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
 import org.jivesoftware.smackx.disco.packet.DiscoverInfo.Identity;
 import org.jivesoftware.smackx.httpfileupload.HttpFileUploadManager;
+import org.jivesoftware.smackx.muc.MultiUserChat;
+import org.jivesoftware.smackx.muc.MultiUserChatManager;
 import org.jxmpp.jid.EntityBareJid;
 import org.jxmpp.jid.impl.JidCreate;
+import org.jxmpp.jid.parts.Resourcepart;
 import org.jxmpp.stringprep.XmppStringprepException;
 import org.openhab.binding.xmppclient.internal.handler.XMPPClientMessageSubscriber;
 import org.slf4j.Logger;
@@ -55,9 +58,11 @@ public class XMPPClient implements IncomingChatMessageListener, ConnectionListen
     private final Logger logger = LoggerFactory.getLogger(XMPPClient.class);
     private @Nullable AbstractXMPPConnection connection;
     private @Nullable ChatManager chatManager;
+    private @Nullable MultiUserChatManager multiUserChatManager;
     private @Nullable HttpFileUploadManager httpFileUploadManager;
     private Set<XMPPClientMessageSubscriber> subscribers = new HashSet<>();
     private final XMPPClientEventlistener eventListener;
+    private String nickname = "";
 
     public XMPPClient(XMPPClientEventlistener eventListener) {
         this.eventListener = eventListener;
@@ -73,7 +78,7 @@ public class XMPPClient implements IncomingChatMessageListener, ConnectionListen
         subscribers.remove(channel);
     }
 
-    public void connect(String host, Integer port, String login, String domain, String password,
+    public void connect(String host, Integer port, String login, String nick, String domain, String password,
             SecurityMode securityMode) throws XMPPClientConfigException, XMPPClientException {
         disconnect();
         String serverHost = domain;
@@ -81,7 +86,14 @@ public class XMPPClient implements IncomingChatMessageListener, ConnectionListen
             serverHost = host;
         }
 
+        if (!nick.isBlank()) {
+            nickname = nick;
+        } else {
+            nickname = login;
+        }
+
         XMPPTCPConnectionConfiguration config;
+
         try {
             config = XMPPTCPConnectionConfiguration.builder() //
                     .setHost(serverHost) //
@@ -107,7 +119,7 @@ public class XMPPClient implements IncomingChatMessageListener, ConnectionListen
 
         try {
             connectionLocal.connect().login();
-        } catch (InterruptedException | XMPPException | SmackException | IOException e) {
+        } catch (InterruptedException | XMPPException | SmackException | IOException | IllegalStateException e) {
             throw new XMPPClientException(Objects.requireNonNullElse(e.getMessage(), "Unknown error message"),
                     e.getCause());
         }
@@ -115,7 +127,10 @@ public class XMPPClient implements IncomingChatMessageListener, ConnectionListen
         ChatManager chatManager = ChatManager.getInstanceFor(connection);
         chatManager.addIncomingListener(this);
         this.chatManager = chatManager;
-        httpFileUploadManager = HttpFileUploadManager.getInstanceFor(connection);
+
+        MultiUserChatManager multiUserChatManager = MultiUserChatManager.getInstanceFor(connection);
+        multiUserChatManager.setAutoJoinOnReconnect(true);
+        this.multiUserChatManager = multiUserChatManager;
     }
 
     public void disconnect() {
@@ -145,22 +160,87 @@ public class XMPPClient implements IncomingChatMessageListener, ConnectionListen
         }
     }
 
-    public void sendImageByHTTP(String to, String filename) {
+    public void sendGroupMessage(String to, String message) {
         if (connection == null) {
-            logger.warn("XMPP connection is null");
+            eventListener.onErrorEvent("XMPP connection is null");
             return;
         }
-        HttpFileUploadManager httpFileUploadManagerLocal = httpFileUploadManager;
-        if (httpFileUploadManagerLocal == null) {
-            logger.warn("XMPP httpFileUploadManager is null");
+
+        MultiUserChatManager chatManager = this.multiUserChatManager;
+        if (chatManager == null) {
+            eventListener.onErrorEvent("XMPP chatManager is null");
             return;
         }
         try {
-            URL u = httpFileUploadManagerLocal.uploadFile(new File(filename));
-            // Use Stanza oob
-            this.sendMessage(to, u.toString());
-        } catch (XMPPException.XMPPErrorException | SmackException | InterruptedException | IOException e) {
-            logger.warn("XMPP HTTP image sending error", e);
+            EntityBareJid jid = JidCreate.entityBareFrom(to);
+            MultiUserChat chat = chatManager.getMultiUserChat(jid);
+
+            if (!chat.isJoined()) {
+                chat.join(Resourcepart.from(nickname));
+            }
+
+            chat.sendMessage(message);
+        } catch (XmppStringprepException | SmackException.NotConnectedException | InterruptedException e) {
+            logger.warn("XMPP message sending error", e);
+        } catch (SmackException | XMPPException e) {
+            logger.warn("XMPP message group join error", e);
+        }
+    }
+
+    public void sendImageByHTTP(String to, String filename) {
+        if (connection == null || !connection.isAuthenticated()) {
+            logger.warn("XMPP connection is null or not authenticated");
+            return;
+        }
+
+        File file = new File(filename);
+        if (!file.isFile() || !file.canRead()) {
+            logger.warn("XMPP image file does not exist or is not readable: {}", filename);
+            return;
+        }
+
+        HttpFileUploadManager uploadManager = httpFileUploadManager;
+        if (uploadManager == null) {
+            httpFileUploadManager = uploadManager = HttpFileUploadManager.getInstanceFor(connection);
+        }
+
+        if (uploadManager == null) {
+            logger.warn("XMPP HttpFileUploadManager is null");
+            return;
+        }
+
+        try {
+            // Force discovery instead of assuming it already happened
+            if (!uploadManager.isUploadServiceDiscovered()) {
+                boolean discovered = uploadManager.discoverUploadService();
+                logger.debug("XMPP HTTP upload discovered: {}", discovered);
+            }
+
+            if (!uploadManager.isUploadServiceDiscovered()) {
+                logger.warn("XMPP server does not provide XEP-0363 HTTP File Upload");
+                return;
+            }
+
+            logger.debug("XMPP HTTP upload service: {}", uploadManager.getDefaultUploadService());
+
+            URL url = uploadManager.uploadFile(file);
+
+            // Simple fallback: just send the URL as a message.
+            // If you want true out-of-band metadata, build an OOB extension stanza instead.
+            sendMessage(to, url.toString());
+        } catch (XMPPException.XMPPErrorException e) {
+            logger.warn("XMPP HTTP upload rejected by server: {}", e.getMessage(), e);
+        } catch (SmackException.NoResponseException e) {
+            logger.warn("XMPP HTTP upload timed out while discovering service or requesting slot", e);
+        } catch (SmackException.NotConnectedException e) {
+            logger.warn("XMPP HTTP upload failed because connection is not active", e);
+        } catch (SmackException e) {
+            logger.warn("XMPP HTTP upload failed: {}", e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.warn("XMPP HTTP upload interrupted", e);
+        } catch (IOException e) {
+            logger.warn("XMPP HTTP upload I/O error", e);
         }
     }
 

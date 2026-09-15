@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -142,7 +142,6 @@ public class BoschSslUtil {
                 return keyStore;
             }
         } catch (OperatorCreationException | GeneralSecurityException | IOException e) {
-            logger.debug("Exception during keystore creation {}", e.getMessage());
             throw new PairingFailedException("Can not create or load keystore file: " + keystorePath
                     + ". Check path, write access and JKS content.", e);
         }
@@ -150,11 +149,11 @@ public class BoschSslUtil {
 
     private X509Certificate generateClientCertificate(KeyPair keyPair)
             throws GeneralSecurityException, OperatorCreationException {
-        final String dirName = "CN=" + getBoschShcClientId() + ", O=openHAB, L=None, ST=None, C=None";
+        final String dirName = "CN=" + getBoschShcClientId() + ", O=openHAB, L=None, ST=None";
         logger.debug("Creating a new self signed certificate: {}", dirName);
         final Instant now = Instant.now();
         final Date notBefore = Date.from(now);
-        final Date notAfter = Date.from(now.plus(Duration.ofDays(365 * 10)));
+        final Date notAfter = Date.from(now.plus(Duration.ofDays(365 * 10l)));
         X500Name name = new X500Name(dirName);
 
         // create the certificate

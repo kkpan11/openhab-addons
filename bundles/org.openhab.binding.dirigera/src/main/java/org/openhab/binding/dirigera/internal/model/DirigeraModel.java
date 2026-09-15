@@ -1,0 +1,699 @@
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
+ *
+ * See the NOTICE file(s) distributed with this work for additional
+ * information.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
+package org.openhab.binding.dirigera.internal.model;
+
+import static org.openhab.binding.dirigera.internal.Constants.*;
+import static org.openhab.binding.dirigera.internal.interfaces.Model.*;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.openhab.binding.dirigera.internal.interfaces.DirigeraAPI;
+import org.openhab.binding.dirigera.internal.interfaces.Gateway;
+import org.openhab.binding.dirigera.internal.interfaces.Model;
+import org.openhab.core.config.discovery.DiscoveryResult;
+import org.openhab.core.config.discovery.DiscoveryResultBuilder;
+import org.openhab.core.thing.ThingTypeUID;
+import org.openhab.core.thing.ThingUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * The {@link DirigeraModel} is representing the structural data of the devices connected to gateway. Concrete values of
+ * devices shall not be accessed.
+ *
+ * @author Bernd Weymann - Initial contribution
+ * @author Bernd Weymann - add device set handling
+ */
+@NonNullByDefault
+public class DirigeraModel implements Model {
+    private final Logger logger = LoggerFactory.getLogger(DirigeraModel.class);
+
+    private Map<String, DiscoveryResult> resultMap = new HashMap<>();
+    private List<String> devices = new ArrayList<>();
+    private JSONObject model = new JSONObject();
+    private Gateway gateway;
+
+    public DirigeraModel(Gateway gateway) {
+        this.gateway = gateway;
+    }
+
+    @Override
+    public synchronized String getModelString() {
+        return model.toString();
+    }
+
+    @Override
+    public synchronized int update() {
+        Instant startTime = Instant.now();
+        JSONObject home = gateway.api().readHome();
+        // call finished with error code ...
+        if (home.has(DirigeraAPI.HTTP_ERROR_FLAG)) {
+            int status = home.getInt(DirigeraAPI.HTTP_ERROR_STATUS);
+            logger.warn("DIRIGERA MODEL received model with error code {} - don't take it", status);
+            return status;
+        } else if (home.isEmpty()) {
+            // ... call finished with unchecked exception ...
+            return 500;
+        } else {
+            // ... call finished with success
+            model = home;
+            detection();
+        }
+        logger.trace("DIRIGERA MODEL full update {} ms", Duration.between(startTime, Instant.now()).toMillis());
+        return 200;
+    }
+
+    @Override
+    public synchronized void detection() {
+        if (gateway.discoveryEnabled()) {
+            List<String> previousDevices = new ArrayList<>();
+            previousDevices.addAll(devices);
+
+            // first get devices
+            List<String> foundDevices = new ArrayList<>();
+            foundDevices.addAll(getResolvedDeviceList());
+            foundDevices.addAll(getAllSceneIds());
+            foundDevices.addAll(getAllLightSetIds());
+            devices.clear();
+            devices.addAll(foundDevices);
+            previousDevices.forEach(deviceId -> {
+                boolean known = gateway.isKnownDevice(deviceId);
+                boolean removed = !foundDevices.contains(deviceId);
+                if (removed) {
+                    removedDeviceScene(deviceId);
+                } else {
+                    if (!known) {
+                        addedDeviceScene(deviceId);
+                    } // don't update known devices
+                }
+            });
+            foundDevices.removeAll(previousDevices);
+            foundDevices.forEach(deviceId -> {
+                boolean known = gateway.isKnownDevice(deviceId);
+                if (!known) {
+                    addedDeviceScene(deviceId);
+                }
+            });
+        }
+    }
+
+    /**
+     * Returns list with resolved relations
+     *
+     * @return
+     */
+    @Override
+    public synchronized List<String> getResolvedDeviceList() {
+        List<String> deviceList = new ArrayList<>();
+        if (!model.isNull(MODEL_KEY_DEVICES)) {
+            JSONArray devices = model.getJSONArray(MODEL_KEY_DEVICES);
+            Iterator<Object> entries = devices.iterator();
+            while (entries.hasNext()) {
+                JSONObject entry = (JSONObject) entries.next();
+                String deviceId = entry.getString(JSON_KEY_DEVICE_ID);
+                String relationId = getRelationId(deviceId);
+                String resolvedId;
+                if (!deviceId.equals(relationId)) {
+                    TreeMap<String, String> relationMap = getRelations(relationId);
+                    // store for complex devices store result with first found id
+                    resolvedId = relationMap.firstKey();
+                } else {
+                    resolvedId = deviceId;
+                }
+                if (!deviceList.contains(resolvedId)) {
+                    deviceList.add(resolvedId);
+                }
+            }
+        }
+        return deviceList;
+    }
+
+    /**
+     * Returns list with all device id's
+     *
+     * @return
+     */
+    @Override
+    public synchronized List<String> getAllDeviceIds() {
+        List<String> deviceList = new ArrayList<>();
+        if (!model.isNull(MODEL_KEY_DEVICES)) {
+            JSONArray devices = model.getJSONArray(MODEL_KEY_DEVICES);
+            Iterator<Object> entries = devices.iterator();
+            while (entries.hasNext()) {
+                JSONObject entry = (JSONObject) entries.next();
+                deviceList.add(entry.getString(JSON_KEY_DEVICE_ID));
+            }
+        }
+        return deviceList;
+    }
+
+    private List<String> getAllSceneIds() {
+        List<String> sceneList = new ArrayList<>();
+        if (!model.isNull(MODEL_KEY_SCENES)) {
+            JSONArray scenes = model.getJSONArray(MODEL_KEY_SCENES);
+            Iterator<Object> sceneIterator = scenes.iterator();
+            while (sceneIterator.hasNext()) {
+                JSONObject entry = (JSONObject) sceneIterator.next();
+                if (entry.has(JSON_KEY_TYPE)) {
+                    if (TYPE_USER_SCENE.equals(entry.getString(JSON_KEY_TYPE))) {
+                        if (entry.has(JSON_KEY_DEVICE_ID)) {
+                            String id = entry.getString(JSON_KEY_DEVICE_ID);
+                            sceneList.add(id);
+                        }
+                    }
+                }
+            }
+        }
+        return sceneList;
+    }
+
+    /**
+     * Collects all unique light set IDs by scanning the deviceSet array of every device.
+     * A light set is not a top-level device entry; its ID only appears embedded in member devices.
+     *
+     * @return list of unique light set IDs
+     */
+    synchronized List<String> getAllLightSetIds() {
+        // LinkedHashSet gives O(1) duplicate-check while preserving insertion order.
+        // List.contains() on an ArrayList would be O(n) per check, resulting in O(n²) overall.
+        Set<String> setIds = new LinkedHashSet<>();
+        if (!model.isNull(MODEL_KEY_DEVICES)) {
+            JSONArray devices = model.getJSONArray(MODEL_KEY_DEVICES);
+            Iterator<Object> entries = devices.iterator();
+            while (entries.hasNext()) {
+                JSONObject entry = (JSONObject) entries.next();
+                if (entry.has(JSON_KEY_DEVICE_SET)) {
+                    JSONArray deviceSets = entry.getJSONArray(JSON_KEY_DEVICE_SET);
+                    deviceSets.forEach(setObj -> {
+                        JSONObject set = (JSONObject) setObj;
+                        setIds.add(set.getString(JSON_KEY_DEVICE_ID));
+                    });
+                }
+            }
+        }
+        return new ArrayList<>(setIds);
+    }
+
+    /**
+     * Returns the first deviceSet entry found for a given set ID, or an empty JSONObject if not found.
+     * Used to retrieve name, icon and id of a light set.
+     */
+    private synchronized JSONObject getLightSetData(String setId) {
+        if (!model.isNull(MODEL_KEY_DEVICES)) {
+            JSONArray devices = model.getJSONArray(MODEL_KEY_DEVICES);
+            Iterator<Object> entries = devices.iterator();
+            while (entries.hasNext()) {
+                JSONObject entry = (JSONObject) entries.next();
+                if (entry.has(JSON_KEY_DEVICE_SET)) {
+                    JSONArray deviceSets = entry.getJSONArray(JSON_KEY_DEVICE_SET);
+                    for (Object setObj : deviceSets) {
+                        JSONObject set = (JSONObject) setObj;
+                        if (setId.equals(set.getString(JSON_KEY_DEVICE_ID))) {
+                            return set;
+                        }
+                    }
+                }
+            }
+        }
+        return new JSONObject();
+    }
+
+    /**
+     * Returns the list of member device IDs that belong to the given light set ID.
+     * A device is a member if its deviceSet array contains an entry with the given setId.
+     *
+     * @param setId the light set ID to query
+     * @return list of member device IDs
+     */
+    @Override
+    public synchronized List<String> getMemberDeviceIds(String setId) {
+        List<String> memberIds = new ArrayList<>();
+        if (!model.isNull(MODEL_KEY_DEVICES)) {
+            JSONArray devices = model.getJSONArray(MODEL_KEY_DEVICES);
+            Iterator<Object> entries = devices.iterator();
+            while (entries.hasNext()) {
+                JSONObject entry = (JSONObject) entries.next();
+                if (entry.has(JSON_KEY_DEVICE_SET) && entry.has(JSON_KEY_DEVICE_ID)) {
+                    JSONArray deviceSets = entry.getJSONArray(JSON_KEY_DEVICE_SET);
+                    for (Object setObj : deviceSets) {
+                        JSONObject set = (JSONObject) setObj;
+                        if (setId.equals(set.getString(JSON_KEY_DEVICE_ID))) {
+                            memberIds.add(entry.getString(JSON_KEY_DEVICE_ID));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return memberIds;
+    }
+
+    private void addedDeviceScene(String id) {
+        DiscoveryResult result = identifiy(id);
+        if (result != null) {
+            gateway.discovery().deviceDiscovered(result);
+            resultMap.put(id, result);
+        }
+    }
+
+    private void removedDeviceScene(String id) {
+        DiscoveryResult deliveredResult = resultMap.remove(id);
+        if (deliveredResult != null) {
+            gateway.discovery().deviceRemoved(deliveredResult);
+        }
+        // inform gateway to remove device and update handler accordingly
+        gateway.deleteDevice(id);
+    }
+
+    @Override
+    public synchronized List<String> getDevicesForTypes(List<String> types) {
+        List<String> candidates = new ArrayList<>();
+        types.forEach(type -> {
+            JSONArray addons = getIdsForType(type);
+            addons.forEach(entry -> {
+                candidates.add(entry.toString());
+            });
+        });
+        return candidates;
+    }
+
+    private JSONArray getIdsForType(String type) {
+        JSONArray returnArray = new JSONArray();
+        if (!model.isNull(MODEL_KEY_DEVICES)) {
+            JSONArray devices = model.getJSONArray(MODEL_KEY_DEVICES);
+            Iterator<Object> entries = devices.iterator();
+            while (entries.hasNext()) {
+                JSONObject entry = (JSONObject) entries.next();
+                if (!entry.isNull(JSON_KEY_DEVICE_TYPE) && !entry.isNull(JSON_KEY_DEVICE_ID)) {
+                    if (type.equals(entry.get(JSON_KEY_DEVICE_TYPE))) {
+                        returnArray.put(entry.get(JSON_KEY_DEVICE_ID));
+                    }
+                }
+            }
+        }
+        return returnArray;
+    }
+
+    private boolean hasAttribute(String id, String attribute) {
+        JSONObject deviceObject = getAllFor(id, MODEL_KEY_DEVICES);
+        if (deviceObject.has(JSON_KEY_ATTRIBUTES)) {
+            JSONObject attributes = deviceObject.getJSONObject(JSON_KEY_ATTRIBUTES);
+            return attributes.has(attribute);
+        }
+        return false;
+    }
+
+    @Override
+    public synchronized JSONObject getAllFor(String id, String type) {
+        JSONObject returnObject = new JSONObject();
+        if (model.has(type)) {
+            JSONArray devices = model.getJSONArray(type);
+            Iterator<Object> entries = devices.iterator();
+            while (entries.hasNext()) {
+                JSONObject entry = (JSONObject) entries.next();
+                if (id.equals(entry.get(JSON_KEY_DEVICE_ID))) {
+                    return entry;
+                }
+            }
+        }
+        return returnObject;
+    }
+
+    @Override
+    public synchronized String getCustonNameFor(String id) {
+        // check if id refers to a light set
+        JSONObject setData = getLightSetData(id);
+        if (!setData.isEmpty() && setData.has("name")) {
+            return setData.getString("name");
+        }
+        JSONObject deviceObject = getAllFor(id, MODEL_KEY_DEVICES);
+        if (deviceObject.has(JSON_KEY_ATTRIBUTES)) {
+            JSONObject attributes = deviceObject.getJSONObject(JSON_KEY_ATTRIBUTES);
+            if (attributes.has(ATTRIBUTES_KEY_CUSTOM_NAME)) {
+                String customName = attributes.getString(ATTRIBUTES_KEY_CUSTOM_NAME);
+                if (!customName.isBlank()) {
+                    return customName;
+                }
+            }
+            if (attributes.has(ATTRIBUTES_KEY_DEVICE_MODEL)) {
+                String deviceModel = attributes.getString(ATTRIBUTES_KEY_DEVICE_MODEL);
+                if (!deviceModel.isBlank()) {
+                    return deviceModel;
+                }
+            }
+            if (deviceObject.has(JSON_KEY_DEVICE_TYPE)) {
+                return deviceObject.getString(JSON_KEY_DEVICE_TYPE);
+            }
+            // 3 fallback options
+        }
+        // not found yet - check scenes
+        JSONObject sceneObject = getAllFor(id, MODEL_KEY_SCENES);
+        if (sceneObject.has("info")) {
+            JSONObject info = sceneObject.getJSONObject("info");
+            if (info.has("name")) {
+                String name = info.getString("name");
+                if (!name.isBlank()) {
+                    return name;
+                }
+            }
+        }
+
+        return id;
+    }
+
+    @Override
+    public synchronized Map<String, Object> getPropertiesFor(String id) {
+        final Map<String, Object> properties = new HashMap<>();
+        // light sets are not top-level devices — build properties from set metadata
+        JSONObject setData = getLightSetData(id);
+        if (!setData.isEmpty()) {
+            properties.put(JSON_KEY_DEVICE_ID, id);
+            if (setData.has("name")) {
+                properties.put(ATTRIBUTES_KEY_CUSTOM_NAME, setData.getString("name"));
+            }
+            return properties;
+        }
+        JSONObject deviceObject = getAllFor(id, MODEL_KEY_DEVICES);
+        // get manufacturer, model and version data
+        if (deviceObject.has(JSON_KEY_ATTRIBUTES)) {
+            JSONObject attributes = deviceObject.getJSONObject(JSON_KEY_ATTRIBUTES);
+            THING_PROPERTIES.forEach(property -> {
+                if (attributes.has(property)) {
+                    properties.put(property, attributes.get(property));
+                }
+            });
+        }
+        // put id in as representation property
+        properties.put(JSON_KEY_DEVICE_ID, id);
+        // add capabilities
+        if (deviceObject.has(JSON_KEY_CAPABILITIES)) {
+            JSONObject capabilities = deviceObject.getJSONObject(JSON_KEY_CAPABILITIES);
+            if (capabilities.has(CAPABILITIES_KEY_CAN_RECEIVE)) {
+                properties.put(CAPABILITIES_KEY_CAN_RECEIVE, capabilities.getJSONArray(CAPABILITIES_KEY_CAN_RECEIVE));
+            }
+            if (capabilities.has(CAPABILITIES_KEY_CAN_SEND)) {
+                properties.put(CAPABILITIES_KEY_CAN_SEND, capabilities.getJSONArray(CAPABILITIES_KEY_CAN_SEND));
+            }
+        }
+
+        return properties;
+    }
+
+    @Override
+    public synchronized TreeMap<String, String> getRelations(String relationId) {
+        final TreeMap<String, String> relationsMap = new TreeMap<>();
+        List<String> allDevices = getAllDeviceIds();
+        allDevices.forEach(deviceId -> {
+            JSONObject data = getAllFor(deviceId, MODEL_KEY_DEVICES);
+            if (data.has(JSON_KEY_RELATION_ID)) {
+                String relation = data.getString(JSON_KEY_RELATION_ID);
+                if (relationId.equals(relation)) {
+                    String relationDeviceId = data.getString(JSON_KEY_DEVICE_ID);
+                    String deviceType = data.getString(JSON_KEY_DEVICE_TYPE);
+                    if (relationDeviceId != null && deviceType != null) {
+                        relationsMap.put(relationDeviceId, deviceType);
+                    }
+                }
+            }
+        });
+        return relationsMap;
+    }
+
+    private @Nullable DiscoveryResult identifiy(String id) {
+        ThingTypeUID ttuid = identifyDeviceFromModel(id);
+        // don't report gateway, unknown devices and light sensors connected to motion sensors
+        if (!IGNORE_THING_TYPES_UIDS.contains(ttuid)) {
+            String discoveryID = id;
+            String customName = getCustonNameFor(discoveryID);
+            // special handling for BILRESA 3 button controller
+            if (THING_TYPE_MATTER_3_BUTTON_CONTROLLER.equals(ttuid)) {
+                discoveryID = id;
+                char controllerGroup = id.charAt(id.length() - 1);
+                int controllerGroupNUmber = Character.getNumericValue(controllerGroup);
+                customName = customName + " Group " + controllerGroupNUmber / 3;
+            } else {
+                // pack all relations into one device
+                String relationId = getRelationId(id);
+                if (!id.equals(relationId)) {
+                    // complex device
+                    TreeMap<String, String> relationMap = getRelations(relationId);
+                    // take name from first ordered entry
+                    discoveryID = relationMap.firstKey();
+                }
+            }
+            // take name and properties from first found id
+
+            Map<String, Object> propertiesMap = getPropertiesFor(discoveryID);
+            return DiscoveryResultBuilder.create(new ThingUID(ttuid, gateway.getThing().getUID(), discoveryID))
+                    .withBridge(gateway.getThing().getUID()).withProperties(propertiesMap)
+                    .withRepresentationProperty(JSON_KEY_DEVICE_ID).withLabel(customName).build();
+        }
+        return null;
+    }
+
+    /**
+     * Identify device which is present in model
+     *
+     * @param id
+     * @return
+     */
+    @Override
+    public synchronized ThingTypeUID identifyDeviceFromModel(String id) {
+        // light set IDs are not top-level devices — check separately first
+        if (getAllLightSetIds().contains(id)) {
+            return THING_TYPE_LIGHT_SET;
+        }
+        JSONObject data = getAllFor(id, MODEL_KEY_DEVICES);
+        if (data.isEmpty()) {
+            data = getAllFor(id, MODEL_KEY_SCENES);
+        }
+        if (data.isEmpty()) {
+            return THING_TYPE_NOT_FOUND;
+        } else {
+            ThingTypeUID ttUID = identifyMatterDevice(id, data);
+            if (THING_TYPE_UNKNOWN.equals(ttUID)) {
+                // continue with standard device identification if not a matter device
+                ttUID = identifyStandardDevice(id, data);
+            }
+            return ttUID;
+        }
+    }
+
+    /**
+     * identify Matter device based on deviceType and their relations
+     *
+     * @param id to query
+     * @param data belonging to the deviceId
+     * @return Matter ThingTypeUID or THING_TYPE_UNKNOWN
+     */
+    private ThingTypeUID identifyMatterDevice(String id, JSONObject data) {
+        // attribute qrCode is used to identify new Matter devices
+        if (hasAttribute(id, ATTRIBUTES_KEY_QRCODE)) {
+            String deviceType = data.getString(JSON_KEY_DEVICE_TYPE);
+            return switch (deviceType) {
+                case "outlet" -> THING_TYPE_MATTER_OUTLET;
+                case "electricalSensor" -> THING_TYPE_MATTER_OUTLET;
+                case "occupancySensor" -> THING_TYPE_MATTER_OCCUPANCY_SENSOR;
+                case "lightSensor" -> {
+                    String relationId = getRelationId(id);
+                    Map<String, String> relationMap = getRelations(relationId);
+                    if (relationMap.values().contains("occupancySensor")) {
+                        yield THING_TYPE_MATTER_OCCUPANCY_SENSOR;
+                    } else {
+                        yield THING_TYPE_MATTER_LIGHT_SENSOR;
+                    }
+                }
+                case "environmentSensor" -> THING_TYPE_MATTER_ENVIRONMENT_SENSOR;
+                case "openCloseSensor" -> THING_TYPE_MATTER_OPEN_CLOSE_SENSOR;
+                case "waterSensor" -> THING_TYPE_MATTER_WATER_LEAK_SENSOR;
+                case "genericSwitch" -> {
+                    String relationId = getRelationId(id);
+                    int relations = getRelations(relationId).size();
+                    var detectedType = switch (relations) {
+                        case 2 -> THING_TYPE_MATTER_2_BUTTON_CONTROLLER;
+                        case 3 -> THING_TYPE_MATTER_3_BUTTON_CONTROLLER;
+                        default -> THING_TYPE_MATTER_UNKNOWN;
+                    };
+                    yield detectedType;
+                }
+                case "light" -> THING_TYPE_MATTER_LIGHT;
+                default -> THING_TYPE_MATTER_UNKNOWN;
+            };
+        } else
+
+        {
+            // no qrCode attribute found so no new matter device
+            return THING_TYPE_UNKNOWN;
+        }
+    }
+
+    private ThingTypeUID identifyStandardDevice(String id, JSONObject data) {
+        String typeDeviceType = "";
+        if (data.has(JSON_KEY_RELATION_ID)) {
+            return identifiyComplexDevice(data.getString(JSON_KEY_RELATION_ID));
+        } else if (data.has(JSON_KEY_DEVICE_TYPE)) {
+            String deviceType = data.getString(JSON_KEY_DEVICE_TYPE);
+            typeDeviceType = deviceType;
+            switch (deviceType) {
+                case DEVICE_TYPE_GATEWAY:
+                    return THING_TYPE_GATEWAY;
+                case DEVICE_TYPE_LIGHT:
+                    if (data.has(JSON_KEY_CAPABILITIES)) {
+                        JSONObject capabilities = data.getJSONObject(JSON_KEY_CAPABILITIES);
+                        List<String> capabilityList = new ArrayList<>();
+                        if (capabilities.has(CAPABILITIES_KEY_CAN_RECEIVE)) {
+                            JSONArray receiveProperties = capabilities.getJSONArray(CAPABILITIES_KEY_CAN_RECEIVE);
+                            receiveProperties.forEach(capability -> {
+                                capabilityList.add(capability.toString());
+                            });
+                        }
+                        if (capabilityList.contains("colorHue")) {
+                            return THING_TYPE_COLOR_LIGHT;
+                        } else if (capabilityList.contains("colorTemperature")) {
+                            return THING_TYPE_TEMPERATURE_LIGHT;
+                        } else if (capabilityList.contains("lightLevel")) {
+                            return THING_TYPE_DIMMABLE_LIGHT;
+                        } else if (capabilityList.contains("isOn")) {
+                            return THING_TYPE_SWITCH_LIGHT;
+                        } else {
+                            logger.warn("DIRIGERA MODEL cannot identify light {}", data);
+                        }
+                    } else {
+                        logger.warn("DIRIGERA MODEL cannot identify light {}", data);
+                    }
+                    break;
+                case DEVICE_TYPE_MOTION_SENSOR:
+                    return THING_TYPE_MOTION_SENSOR;
+                case DEVICE_TYPE_CONTACT_SENSOR:
+                    return THING_TYPE_CONTACT_SENSOR;
+                case DEVICE_TYPE_OUTLET:
+                    if (hasAttribute(id, "currentActivePower")) {
+                        return THING_TYPE_SMART_PLUG;
+                    } else if (hasAttribute(id, "childLock")) {
+                        return THING_TYPE_POWER_PLUG;
+                    } else {
+                        return THING_TYPE_SIMPLE_PLUG;
+                    }
+                case DEVICE_TYPE_SPEAKER:
+                    return THING_TYPE_SPEAKER;
+                case DEVICE_TYPE_REPEATER:
+                    return THING_TYPE_REPEATER;
+                case DEVICE_TYPE_LIGHT_CONTROLLER:
+                    return THING_TYPE_LIGHT_CONTROLLER;
+                case DEVICE_TYPE_ENVIRONMENT_SENSOR:
+                    return THING_TYPE_AIR_QUALITY;
+                case DEVICE_TYPE_WATER_SENSOR:
+                    return THING_TYPE_WATER_SENSOR;
+                case DEVICE_TYPE_AIR_PURIFIER:
+                    return THING_TYPE_AIR_PURIFIER;
+                case DEVICE_TYPE_BLINDS:
+                    return THING_TYPE_BLIND;
+                case DEVICE_TYPE_BLIND_CONTROLLER:
+                    return THING_TYPE_BLIND_CONTROLLER;
+                case DEVICE_TYPE_SOUND_CONTROLLER:
+                    return THING_TYPE_SOUND_CONTROLLER;
+                case DEVICE_TYPE_SHORTCUT_CONTROLLER:
+                    return THING_TYPE_SINGLE_SHORTCUT_CONTROLLER;
+                case DEVICE_TYPE_LIGHT_SET:
+                    return THING_TYPE_LIGHT_SET;
+            }
+        } else {
+            // device type is empty, check for scene
+            if (!data.isNull(JSON_KEY_TYPE)) {
+                String type = data.getString(JSON_KEY_TYPE);
+                typeDeviceType = type + "/" + typeDeviceType; // just for logging
+                switch (type) {
+                    case TYPE_USER_SCENE:
+                        return THING_TYPE_SCENE;
+                    case TYPE_CUSTOM_SCENE:
+                        return THING_TYPE_IGNORE;
+                }
+            }
+        }
+        logger.warn("DIRIGERA MODEL Unsupported device {} with data {} {}", typeDeviceType, data, id);
+        return THING_TYPE_UNKNOWN;
+    }
+
+    private ThingTypeUID identifiyComplexDevice(String relationId) {
+        Map<String, String> relationsMap = getRelations(relationId);
+        if (relationsMap.size() == 2 && relationsMap.containsValue("lightSensor")
+                && relationsMap.containsValue("motionSensor")) {
+            return THING_TYPE_MOTION_LIGHT_SENSOR;
+        } else if (relationsMap.size() == 2 && relationsMap.containsValue("shortcutController")) {
+            for (Iterator<String> iterator = relationsMap.keySet().iterator(); iterator.hasNext();) {
+                if (!"shortcutController".equals(relationsMap.get(iterator.next()))) {
+                    return THING_TYPE_UNKNOWN;
+                }
+            }
+            return THING_TYPE_DOUBLE_SHORTCUT_CONTROLLER;
+        } else if (relationsMap.size() == 1 && relationsMap.containsValue("gatewy")) {
+            return THING_TYPE_GATEWAY;
+        } else {
+            return THING_TYPE_UNKNOWN;
+        }
+    }
+
+    /**
+     * Get relationId for a given device id
+     *
+     * @param id to check
+     * @return same id if no relations are found or relationId
+     */
+    @Override
+    public synchronized String getRelationId(String id) {
+        JSONObject dataObject = getAllFor(id, MODEL_KEY_DEVICES);
+        if (dataObject.has(JSON_KEY_RELATION_ID)) {
+            return dataObject.getString(JSON_KEY_RELATION_ID);
+        }
+        return id;
+    }
+
+    /**
+     * Get relationId for a given device id
+     *
+     * @param id to check
+     * @return same id if no relations are found or relationId
+     */
+    @Override
+    public synchronized String getDeviceType(String id) {
+        JSONObject dataObject = getAllFor(id, MODEL_KEY_DEVICES);
+        if (dataObject.has(JSON_KEY_DEVICE_TYPE)) {
+            return dataObject.getString(JSON_KEY_DEVICE_TYPE);
+        }
+        return id;
+    }
+
+    /**
+     * Check if given id is present in devices or scenes
+     *
+     * @param id to check
+     * @return true if id is found
+     */
+    @Override
+    public synchronized boolean has(String id) {
+        return getAllDeviceIds().contains(id) || getAllSceneIds().contains(id);
+    }
+}

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -18,7 +18,6 @@ import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
-import org.openhab.core.i18n.TimeZoneProvider;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingTypeUID;
 import org.openhab.core.thing.binding.BaseThingHandlerFactory;
@@ -40,11 +39,11 @@ public class VDRHandlerFactory extends BaseThingHandlerFactory {
 
     private static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Set.of(THING_TYPE_VDR);
 
-    private final TimeZoneProvider timeZoneProvider;
+    private final VDRDynamicStateDescriptionProvider stateDescriptionProvider;
 
     @Activate
-    public VDRHandlerFactory(final @Reference TimeZoneProvider timeZoneProvider) {
-        this.timeZoneProvider = timeZoneProvider;
+    public VDRHandlerFactory(final @Reference VDRDynamicStateDescriptionProvider stateDescriptionProvider) {
+        this.stateDescriptionProvider = stateDescriptionProvider;
     }
 
     @Override
@@ -57,7 +56,7 @@ public class VDRHandlerFactory extends BaseThingHandlerFactory {
         ThingTypeUID thingTypeUID = thing.getThingTypeUID();
 
         if (THING_TYPE_VDR.equals(thingTypeUID)) {
-            return new VDRHandler(thing, timeZoneProvider);
+            return new VDRHandler(thing, stateDescriptionProvider);
         }
 
         return null;

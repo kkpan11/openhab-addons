@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -14,23 +14,19 @@ package org.openhab.binding.chatgpt.internal;
 
 import static org.openhab.binding.chatgpt.internal.ChatGPTBindingConstants.*;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.Locale;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
-import org.eclipse.jetty.client.api.Request;
-import org.eclipse.jetty.client.util.StringContentProvider;
-import org.eclipse.jetty.http.HttpMethod;
-import org.eclipse.jetty.http.HttpStatus;
-import org.openhab.binding.chatgpt.internal.dto.ChatResponse;
-import org.openhab.core.io.net.http.HttpClientFactory;
+import org.openhab.binding.chatgpt.internal.api.ChatGPTApiClient;
+import org.openhab.binding.chatgpt.internal.api.ChatGPTApiException;
+import org.openhab.binding.chatgpt.internal.api.dto.ChatMessage;
+import org.openhab.binding.chatgpt.internal.api.dto.ChatResponse;
+import org.openhab.binding.chatgpt.internal.hli.ChatGPTHLIService;
+import org.openhab.core.i18n.TranslationProvider;
 import org.openhab.core.library.types.StringType;
 import org.openhab.core.thing.Channel;
 import org.openhab.core.thing.ChannelUID;
@@ -40,163 +36,230 @@ import org.openhab.core.thing.ThingStatusDetail;
 import org.openhab.core.thing.binding.BaseThingHandler;
 import org.openhab.core.thing.binding.ThingHandlerService;
 import org.openhab.core.types.Command;
-import org.openhab.core.types.RefreshType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 
 /**
  * The {@link ChatGPTHandler} is responsible for handling commands, which are
  * sent to one of the channels.
  *
  * @author Kai Kreuzer - Initial contribution
+ * @author Artur Fedjukevits - Replaced gson with jackson
  */
 @NonNullByDefault
 public class ChatGPTHandler extends BaseThingHandler {
-
-    private static final int REQUEST_TIMEOUT_MS = 10_000;
     private final Logger logger = LoggerFactory.getLogger(ChatGPTHandler.class);
 
-    private HttpClient httpClient;
-    private Gson gson = new Gson();
-
-    private String apiKey = "";
-    private String apiUrl = "";
-    private String modelUrl = "";
-
-    private String lastPrompt = "";
-
+    private final HttpClient httpClient;
+    private final TranslationProvider translationProvider;
+    private @Nullable ChatGPTConfiguration config;
+    private @Nullable ChatGPTApiClient apiClient;
     private List<String> models = List.of();
 
-    public ChatGPTHandler(Thing thing, HttpClientFactory httpClientFactory) {
+    public ChatGPTHandler(Thing thing, HttpClient httpClient, TranslationProvider translationProvider) {
         super(thing);
-        this.httpClient = httpClientFactory.getCommonHttpClient();
+        this.httpClient = httpClient;
+        this.translationProvider = translationProvider;
+    }
+
+    public TranslationProvider getTranslationProvider() {
+        return translationProvider;
+    }
+
+    public @Nullable ChatGPTApiClient getApiClient() {
+        return apiClient;
     }
 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
-        if (command instanceof RefreshType && !"".equals(lastPrompt)) {
-            String response = sendPrompt(channelUID, lastPrompt);
-            processChatResponse(channelUID, response);
-        }
-
         if (command instanceof StringType stringCommand) {
-            lastPrompt = stringCommand.toFullString();
-            String response = sendPrompt(channelUID, lastPrompt);
-            processChatResponse(channelUID, response);
+            String lastPrompt = stringCommand.toFullString();
+
+            Channel channel = getThing().getChannel(channelUID);
+            if (channel == null) {
+                logger.error("Channel with UID '{}' cannot be found on Thing '{}'.", channelUID, getThing().getUID());
+                return;
+            }
+
+            ChatGPTApiClient client = apiClient;
+
+            if (client != null) {
+                final var timeout = resolveTimeout(channelUID);
+                final ChatGPTConfiguration config = this.config;
+                String model = (config != null && !config.model.isBlank()) ? config.model : DEFAULT_MODEL;
+                double temp = config != null ? config.temperature : DEFAULT_TEMPERATURE;
+                double topP = config != null ? config.topP : DEFAULT_TOP_P;
+                int maxTokens = config != null ? config.maxTokens : DEFAULT_MAX_TOKENS;
+                String reasoningEffort = (config != null && !config.reasoningEffort.isBlank()) ? config.reasoningEffort
+                        : DEFAULT_REASONING_EFFORT;
+                String systemMessage = DEFAULT_SYSTEM_MESSAGE;
+
+                ChatGPTChannelConfiguration channelConfig = channel.getConfiguration()
+                        .as(ChatGPTChannelConfiguration.class);
+
+                String channelModel = channelConfig.model;
+                if (channelModel != null && !channelModel.isBlank()) {
+                    model = channelModel;
+                }
+
+                Double channelTemp = channelConfig.temperature;
+                if (channelTemp != null) {
+                    temp = channelTemp;
+                }
+
+                Double channelTopP = channelConfig.topP;
+                if (channelTopP != null) {
+                    topP = channelTopP;
+                }
+
+                Integer channelMaxTokens = channelConfig.maxTokens;
+                if (channelMaxTokens != null) {
+                    maxTokens = channelMaxTokens;
+                }
+
+                String channelReasoningEffort = channelConfig.reasoningEffort;
+                if (channelReasoningEffort != null && !channelReasoningEffort.isBlank()) {
+                    reasoningEffort = channelReasoningEffort;
+                }
+
+                String channelSystemMessage = channelConfig.systemMessage;
+                if (channelSystemMessage != null && !channelSystemMessage.isBlank()) {
+                    systemMessage = channelSystemMessage;
+                }
+
+                try {
+                    ChatResponse response = client.sendPrompt(model, lastPrompt, systemMessage, temp, topP, maxTokens,
+                            reasoningEffort, timeout);
+                    processChatResponse(channelUID, response);
+                    updateStatus(ThingStatus.ONLINE);
+                } catch (ChatGPTApiException e) {
+                    updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+                            "@text/offline.communication-error");
+                    logger.debug("Request to OpenAI failed: {}", e.getMessage(), e);
+                }
+            }
         }
     }
 
-    private void processChatResponse(ChannelUID channelUID, @Nullable String response) {
-        if (response != null) {
-            ChatResponse chatResponse = gson.fromJson(response, ChatResponse.class);
-            if (chatResponse != null) {
-                String msg = chatResponse.getChoices().get(0).getMessage().getContent();
+    private void processChatResponse(ChannelUID channelUID, ChatResponse chatResponse) {
+        if (chatResponse.getChoices() != null && !chatResponse.getChoices().isEmpty()) {
+            String finishReason = chatResponse.getChoices().get(0).getFinishReason();
+
+            if ("length".equals(finishReason)) {
+                logger.warn("Token length exceeded. Increase maximum token limit to avoid the issue.");
+                return;
+            }
+
+            @Nullable
+            ChatMessage chatResponseMessage = chatResponse.getChoices().getFirst().getChatMessage();
+            if (chatResponseMessage == null) {
+                logger.error("ChatGPT response does not contain a message.");
+                return;
+            }
+
+            @Nullable
+            String msg = chatResponseMessage.getContent();
+            if (msg != null) {
                 updateState(channelUID, new StringType(msg));
-            } else {
-                logger.warn("Didn't receive any response from ChatGPT - this is unexpected.");
             }
+        } else {
+            logger.warn("Didn't receive any response from ChatGPT - this is unexpected.");
         }
     }
 
-    private @Nullable String sendPrompt(ChannelUID channelUID, String prompt) {
+    public @Nullable ChatGPTConfiguration getConfigAs() {
+        return this.config;
+    }
+
+    private @Nullable Integer resolveTimeout(ChannelUID channelUID) {
         Channel channel = getThing().getChannel(channelUID);
-        if (channel == null) {
-            logger.error("Channel with UID '{}' cannot be found on Thing '{}'.", channelUID, getThing().getUID());
-            return null;
-        }
-        ChatGPTChannelConfiguration channelConfig = channel.getConfiguration().as(ChatGPTChannelConfiguration.class);
-
-        JsonObject root = new JsonObject();
-        root.addProperty("temperature", channelConfig.temperature);
-        root.addProperty("model", channelConfig.model);
-        root.addProperty("max_tokens", channelConfig.maxTokens);
-
-        JsonObject systemMessage = new JsonObject();
-        systemMessage.addProperty("role", "system");
-        systemMessage.addProperty("content", channelConfig.systemMessage);
-        JsonObject userMessage = new JsonObject();
-        userMessage.addProperty("role", "user");
-        userMessage.addProperty("content", prompt);
-        JsonArray messages = new JsonArray(2);
-        messages.add(systemMessage);
-        messages.add(userMessage);
-        root.add("messages", messages);
-
-        String queryJson = gson.toJson(root);
-        Request request = httpClient.newRequest(apiUrl).method(HttpMethod.POST)
-                .timeout(REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS).header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + apiKey).content(new StringContentProvider(queryJson));
-        logger.trace("Query '{}'", queryJson);
-        try {
-            ContentResponse response = request.send();
-            updateStatus(ThingStatus.ONLINE);
-            if (response.getStatus() == HttpStatus.OK_200) {
-                return response.getContentAsString();
-            } else {
-                logger.error("ChatGPT request resulted in HTTP {} with message: {}", response.getStatus(),
-                        response.getReason());
-                return null;
+        if (channel != null) {
+            ChatGPTChannelConfiguration channelConfig = channel.getConfiguration()
+                    .as(ChatGPTChannelConfiguration.class);
+            if (channelConfig.requestTimeout != null) {
+                return channelConfig.requestTimeout;
             }
-        } catch (InterruptedException | TimeoutException | ExecutionException e) {
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
-                    "Could not connect to OpenAI API: " + e.getMessage());
-            logger.debug("Request to OpenAI failed: {}", e.getMessage(), e);
-            return null;
         }
+        ChatGPTConfiguration c = config;
+        return c != null ? c.requestTimeout : null;
     }
 
     @Override
     public void initialize() {
-        ChatGPTConfiguration config = getConfigAs(ChatGPTConfiguration.class);
+        final ChatGPTConfiguration c = getConfigAs(ChatGPTConfiguration.class);
+        this.config = c;
 
-        String apiKey = config.apiKey;
+        String baseUrl = resolveBaseUrl(c);
+        c.baseUrl = baseUrl;
+        String apiKey = c.apiKey;
 
-        if (apiKey.isBlank()) {
+        if (apiKey.isBlank() && isTokenRequiredEndpoint(baseUrl)) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
                     "@text/offline.configuration-error");
             return;
         }
 
-        this.apiKey = apiKey;
-        this.apiUrl = config.apiUrl;
-        this.modelUrl = config.modelUrl;
+        if (!isValidTimeout(c.requestTimeout)) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
+                    "@text/requestTimeout.configuration-error");
+            return;
+        }
+        if (thing.getChannels().stream()
+                .map(channel -> channel.getConfiguration().as(ChatGPTChannelConfiguration.class))
+                .anyMatch(config -> !isValidTimeout(config.requestTimeout))) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
+                    "@text/requestTimeout.configuration-error");
+            return;
+        }
+
+        this.apiClient = new ChatGPTApiClient(httpClient, apiKey, baseUrl);
 
         updateStatus(ThingStatus.UNKNOWN);
 
         scheduler.execute(() -> {
+            ChatGPTApiClient client = this.apiClient;
+            if (client == null) {
+                return;
+            }
             try {
-                Request request = httpClient.newRequest(modelUrl).timeout(REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                        .method(HttpMethod.GET).header("Authorization", "Bearer " + apiKey);
-                ContentResponse response = request.send();
-                if (response.getStatus() == 200) {
+                List<String> apiModels = client.fetchModels(c.requestTimeout);
+                if (!apiModels.isEmpty()) {
                     updateStatus(ThingStatus.ONLINE);
-                    JsonObject jsonObject = gson.fromJson(response.getContentAsString(), JsonObject.class);
-                    if (jsonObject != null) {
-                        JsonArray data = jsonObject.getAsJsonArray("data");
-
-                        List<String> modelIds = new ArrayList<>();
-                        for (JsonElement element : data) {
-                            JsonObject model = element.getAsJsonObject();
-                            String id = model.get("id").getAsString();
-                            modelIds.add(id);
-                        }
-                        this.models = List.copyOf(modelIds);
-                    } else {
-                        logger.warn("Did not receive a valid JSON response from the models endpoint.");
-                    }
+                    this.models = List.copyOf(apiModels);
                 } else {
                     updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
                             "@text/offline.communication-error");
                 }
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getMessage());
+            } catch (ChatGPTApiException e) {
+                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+                        "@text/offline.communication-error");
+                logger.debug("Fetching models failed: {}", e.getMessage(), e);
             }
         });
+    }
+
+    /**
+     * Resolves the base URL for the API requests, providing backward compatibility for legacy configuration fields.
+     */
+    private String resolveBaseUrl(ChatGPTConfiguration c) {
+        String baseUrl = c.baseUrl;
+        String legacyApiUrl = c.apiUrl;
+        if ((baseUrl.isBlank() || DEFAULT_BASE_URL.equals(baseUrl)) && legacyApiUrl != null
+                && !legacyApiUrl.isBlank()) {
+            if (legacyApiUrl.endsWith("/chat/completions")) {
+                return legacyApiUrl.substring(0, legacyApiUrl.length() - "/chat/completions".length());
+            }
+            return legacyApiUrl;
+        }
+        return baseUrl;
+    }
+
+    boolean isTokenRequiredEndpoint(@Nullable String baseUrl) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return true;
+        }
+        String lower = baseUrl.toLowerCase(Locale.ROOT);
+        return lower.contains("api.openai.com") || lower.contains("openrouter.ai") || lower.contains("api.mistral.ai");
     }
 
     List<String> getModels() {
@@ -205,6 +268,10 @@ public class ChatGPTHandler extends BaseThingHandler {
 
     @Override
     public Collection<Class<? extends ThingHandlerService>> getServices() {
-        return List.of(ChatGPTModelOptionProvider.class);
+        return List.of(ChatGPTModelOptionProvider.class, ChatGPTHLIService.class);
+    }
+
+    boolean isValidTimeout(@Nullable Integer timeout) {
+        return timeout == null || timeout > 0;
     }
 }

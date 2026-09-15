@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,7 +12,10 @@
  */
 package org.openhab.binding.ipobserver.internal;
 
+import javax.measure.quantity.Temperature;
+
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.thing.ThingTypeUID;
 
 /**
@@ -29,6 +32,8 @@ public class IpObserverBindingConstants {
     public static final String SERVER_UPDATE_URL = "/weatherstation/updateweatherstation.php";
     public static final String STATION_SETTINGS_URL = "/station.htm";
     public static final int DISCOVERY_THREAD_POOL_SIZE = 15;
+    public static final QuantityType<Temperature> MAX_TEMPERATURE = new QuantityType<>("80 °C");
+    public static final QuantityType<Temperature> MIN_TEMPERATURE = new QuantityType<>("-30 °C");
 
     // List of all Thing Type UIDs
     public static final ThingTypeUID THING_WEATHER_STATION = new ThingTypeUID(BINDING_ID, "weatherstation");
@@ -55,6 +60,7 @@ public class IpObserverBindingConstants {
     public static final String WEEKLY_RAIN = "rainForWeek";
     public static final String MONTHLY_RAIN = "rainForMonth";
     public static final String YEARLY_RAIN = "rainForYear";
+    public static final String TOTAL_RAIN = "rainTotal";
     public static final String INDOOR_BATTERY = "batteryIndoor";
     public static final String OUTDOOR_BATTERY = "batteryOutdoor";
     public static final String RESPONSE_TIME = "responseTime";

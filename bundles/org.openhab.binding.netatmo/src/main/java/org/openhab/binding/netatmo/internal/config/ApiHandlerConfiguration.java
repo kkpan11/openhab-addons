@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -11,6 +11,8 @@
  * SPDX-License-Identifier: EPL-2.0
  */
 package org.openhab.binding.netatmo.internal.config;
+
+import java.time.Duration;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 
@@ -28,5 +30,18 @@ public class ApiHandlerConfiguration {
     public String clientSecret = "";
     public String webHookUrl = "";
     public String webHookPostfix = "";
-    public int reconnectInterval = 300;
+    private int reconnectInterval = 300;
+
+    public ConfigurationLevel check() {
+        if (clientId.isBlank()) {
+            return ConfigurationLevel.EMPTY_CLIENT_ID;
+        } else if (clientSecret.isBlank()) {
+            return ConfigurationLevel.EMPTY_CLIENT_SECRET;
+        }
+        return ConfigurationLevel.COMPLETED;
+    }
+
+    public Duration getReconnectInterval() {
+        return Duration.ofSeconds(reconnectInterval);
+    }
 }

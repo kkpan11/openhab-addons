@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,14 +12,10 @@
  */
 package org.openhab.persistence.influxdb.internal.influx1;
 
-import static org.openhab.persistence.influxdb.internal.InfluxDBConstants.COLUMN_TIME_NAME_V1;
-import static org.openhab.persistence.influxdb.internal.InfluxDBConstants.COLUMN_VALUE_NAME_V1;
-import static org.openhab.persistence.influxdb.internal.InfluxDBConstants.FIELD_VALUE_NAME;
-import static org.openhab.persistence.influxdb.internal.InfluxDBConstants.TAG_ITEM_NAME;
+import static org.openhab.persistence.influxdb.internal.InfluxDBConstants.*;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -168,11 +164,11 @@ public class InfluxDB1RepositoryImpl implements InfluxDBRepository {
     }
 
     @Override
-    public List<InfluxRow> query(FilterCriteria filter, String retentionPolicy) {
+    public List<InfluxRow> query(FilterCriteria filter, String retentionPolicy, @Nullable String alias) {
         try {
             final InfluxDB currentClient = client;
             if (currentClient != null) {
-                String query = queryCreator.createQuery(filter, retentionPolicy);
+                String query = queryCreator.createQuery(filter, retentionPolicy, alias);
                 logger.trace("Query {}", query);
                 Query parsedQuery = new Query(query, configuration.getDatabaseName());
                 List<QueryResult.Result> results = currentClient.query(parsedQuery, TimeUnit.MILLISECONDS).getResults();
@@ -232,7 +228,7 @@ public class InfluxDB1RepositoryImpl implements InfluxDBRepository {
     }
 
     @Override
-    public Map<String, Integer> getStoredItemsCount() {
-        return Collections.emptyMap();
+    public Map<String, Integer> getStoredItemsCount() throws UnsupportedOperationException {
+        throw new UnsupportedOperationException("getItemInfo not supported for persistence service influxDB1");
     }
 }

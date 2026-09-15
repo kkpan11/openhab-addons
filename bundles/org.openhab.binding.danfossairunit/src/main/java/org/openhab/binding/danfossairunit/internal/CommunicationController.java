@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -15,6 +15,7 @@ package org.openhab.binding.danfossairunit.internal;
 import java.io.IOException;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.openhab.binding.danfossairunit.internal.protocol.Parameter;
 
 /**
  * This interface defines a communication controller that can be used to send requests to the Danfoss Air Unit.
@@ -22,12 +23,20 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
  * @author Jacob Laursen - Initial contribution
  */
 @NonNullByDefault
-public interface CommunicationController {
-    void connect() throws IOException;
+public interface CommunicationController extends AutoCloseable {
+    /**
+     * Closes any open connection. Should be called when the controller is no longer needed.
+     */
+    @Override
+    void close();
 
-    void disconnect();
+    /**
+     * Sends a request to the air unit. The implementation will establish a connection on demand.
+     */
+    byte[] sendRobustRequest(Parameter parameter) throws IOException;
 
-    byte[] sendRobustRequest(byte[] operation, byte[] register) throws IOException;
-
-    byte[] sendRobustRequest(byte[] operation, byte[] register, byte[] value) throws IOException;
+    /**
+     * Sends a request to the air unit. The implementation will establish a connection on demand.
+     */
+    byte[] sendRobustRequest(Parameter parameter, byte[] value) throws IOException;
 }

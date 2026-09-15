@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -33,11 +33,13 @@ public class EaseeBindingConstants {
     public static final String DEVICE_SITE = "site";
     public static final String DEVICE_MASTER_CHARGER = "mastercharger";
     public static final String DEVICE_CHARGER = "charger";
+    public static final String DEVICE_USER = "user";
 
     // List of all Thing Type UIDs
     public static final ThingTypeUID THING_TYPE_SITE = new ThingTypeUID(BINDING_ID, DEVICE_SITE);
     public static final ThingTypeUID THING_TYPE_MASTER_CHARGER = new ThingTypeUID(BINDING_ID, DEVICE_MASTER_CHARGER);
     public static final ThingTypeUID THING_TYPE_CHARGER = new ThingTypeUID(BINDING_ID, DEVICE_CHARGER);
+    public static final ThingTypeUID THING_TYPE_USER = new ThingTypeUID(BINDING_ID, DEVICE_USER);
 
     // List of all channel groups
     public static final String CHANNEL_GROUP_NONE = "";
@@ -49,6 +51,7 @@ public class EaseeBindingConstants {
     public static final String CHANNEL_GROUP_CHARGER_LATEST_SESSION = "latestSession";
     public static final String CHANNEL_GROUP_CIRCUIT_DYNAMIC_CURRENT = "dynamicCurrent";
     public static final String CHANNEL_GROUP_CIRCUIT_SETTINGS = "settings";
+    public static final String CHANNEL_GROUP_USER_CONSUMPTION = "consumption";
 
     // Channel types
     public static final String CHANNEL_TYPE_SWITCH = "Switch";
@@ -83,6 +86,7 @@ public class EaseeBindingConstants {
     public static final String CHANNEL_CIRCUIT_OFFLINE_MAX_CURRENT_PHASE1 = "offlineMaxCircuitCurrentP1";
     public static final String CHANNEL_CIRCUIT_OFFLINE_MAX_CURRENT_PHASE2 = "offlineMaxCircuitCurrentP2";
     public static final String CHANNEL_CIRCUIT_OFFLINE_MAX_CURRENT_PHASE3 = "offlineMaxCircuitCurrentP3";
+    public static final String CHANNEL_USER_TOTAL_CONSUMPTION = "totalConsumption";
 
     // JSON Keys
     public static final String JSON_KEY_GENERIC_ID = "id";
@@ -104,6 +108,11 @@ public class EaseeBindingConstants {
     public static final String JSON_KEY_CIRCUIT_STATES = "circuitStates";
     public static final String JSON_KEY_CHARGER_STATES = "chargerStates";
     public static final String JSON_KEY_CHARGER_STATE = "chargerState";
+    public static final String JSON_KEY_SITE_USERS = "siteUsers";
+    public static final String JSON_KEY_USER_ID = "userId";
+    public static final String JSON_KEY_USER_EMAIL = "email";
+    public static final String JSON_KEY_USER_PHONE_NUMBER = "phoneNumber";
+    public static final String JSON_KEY_TOTAL_ENERGY_USAGE = "totalEnergyUsage";
 
     // Write Commands
     public static final String COMMAND_CHANGE_CONFIGURATION = "ChangeConfiguration";
@@ -122,8 +131,6 @@ public class EaseeBindingConstants {
     public static final String CMD_VAL_RESUME_CHARGING = "resume_charging";
 
     // web request constants
-    public static final long WEB_REQUEST_INITIAL_DELAY = 30;
-    public static final long WEB_REQUEST_INTERVAL = 5;
     public static final int WEB_REQUEST_QUEUE_MAX_SIZE = 20;
     public static final int WEB_REQUEST_TOKEN_EXPIRY_BUFFER_MINUTES = 5;
     public static final int WEB_REQUEST_TOKEN_MAX_AGE_MINUTES = 60;
@@ -134,6 +141,7 @@ public class EaseeBindingConstants {
     public static final String LOGIN_URL = API_BASE_URL + "/accounts/login";
     public static final String REFRESH_TOKEN_URL = API_BASE_URL + "/accounts/refresh_token";
     public static final String GET_SITE_URL = API_BASE_URL + "/sites/{siteId}";
+    public static final String GET_SITE_USERS_URL = API_BASE_URL + "/sites/{siteId}/users";
     public static final String CHARGER_URL = API_BASE_URL + "/chargers/{id}";
     public static final String SITE_STATE_URL = API_BASE_URL + "/sites/{siteId}/state";
     public static final String GET_CONFIGURATION_URL = API_BASE_URL + "/chargers/{id}/config";
@@ -143,6 +151,7 @@ public class EaseeBindingConstants {
     public static final String DYNAMIC_CIRCUIT_CURRENT_URL = API_BASE_URL
             + "/sites/{siteId}/circuits/{circuitId}/dynamicCurrent";
     public static final String CIRCUIT_SETTINGS_URL = API_BASE_URL + "/sites/{siteId}/circuits/{circuitId}/settings";
+    public static final String USER_TOTAL_CONSUMPTION_URL = API_BASE_URL + "/sites/{siteId}/users/{userId}/yearly";
 
     // Status Keys
     public static final String STATUS_TOKEN_VALIDATED = "@text/status.token.validated";
@@ -175,5 +184,5 @@ public class EaseeBindingConstants {
     public static final String PARAMETER_NAME_VALIDATION_REGEXP = "validationExpression";
 
     public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Set.of(THING_TYPE_SITE,
-            THING_TYPE_MASTER_CHARGER, THING_TYPE_CHARGER);
+            THING_TYPE_MASTER_CHARGER, THING_TYPE_CHARGER, THING_TYPE_USER);
 }

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class DeviceHandler extends BaseBridgeHandler implements CommonInterface {
     private final Logger logger = LoggerFactory.getLogger(DeviceHandler.class);
-    private CapabilityMap capabilities = new CapabilityMap();
+    private final CapabilityMap capabilities = new CapabilityMap();
 
     public DeviceHandler(Bridge bridge) {
         super(bridge);
@@ -105,8 +105,8 @@ public class DeviceHandler extends BaseBridgeHandler implements CommonInterface 
     }
 
     @Override
-    public void triggerChannel(String channelID, String event) {
-        super.triggerChannel(channelID, event);
+    public void triggerChannel(String groupID, String channelID, String event) {
+        super.triggerChannel(new ChannelUID(this.getThing().getUID(), groupID, channelID), event);
     }
 
     @Override
@@ -117,5 +117,10 @@ public class DeviceHandler extends BaseBridgeHandler implements CommonInterface 
     @Override
     public ScheduledExecutorService getScheduler() {
         return scheduler;
+    }
+
+    @Override
+    public <T> T getThingConfigAs(Class<T> configurationClass) {
+        return getConfigAs(configurationClass);
     }
 }

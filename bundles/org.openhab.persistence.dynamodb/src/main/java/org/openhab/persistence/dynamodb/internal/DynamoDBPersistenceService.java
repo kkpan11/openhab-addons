@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -22,7 +22,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -46,7 +45,6 @@ import org.openhab.core.library.items.NumberItem;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.persistence.FilterCriteria;
 import org.openhab.core.persistence.HistoricItem;
-import org.openhab.core.persistence.PersistenceItemInfo;
 import org.openhab.core.persistence.PersistenceService;
 import org.openhab.core.persistence.QueryablePersistenceService;
 import org.openhab.core.persistence.strategy.PersistenceStrategy;
@@ -108,7 +106,7 @@ public class DynamoDBPersistenceService implements QueryablePersistenceService {
     private final UnitProvider unitProvider;
     private @Nullable DynamoDbEnhancedAsyncClient client;
     private @Nullable DynamoDbAsyncClient lowLevelClient;
-    private static final Logger logger = LoggerFactory.getLogger(DynamoDBPersistenceService.class);
+    private final Logger logger = LoggerFactory.getLogger(DynamoDBPersistenceService.class);
     private boolean isProperlyConfigured;
     private @Nullable DynamoDBConfig dbConfig;
     private @Nullable DynamoDBTableNameResolver tableNameResolver;
@@ -344,15 +342,15 @@ public class DynamoDBPersistenceService implements QueryablePersistenceService {
     }
 
     @Override
-    public Set<PersistenceItemInfo> getItemInfo() {
-        return Collections.emptySet();
+    public Iterable<HistoricItem> query(FilterCriteria filter) {
+        return query(filter, null);
     }
 
     @Override
-    public Iterable<HistoricItem> query(FilterCriteria filter) {
+    public Iterable<HistoricItem> query(FilterCriteria filter, @Nullable String alias) {
         logIfManyQueuedTasks();
         Instant start = Instant.now();
-        String filterDescription = filterToString(filter);
+        String filterDescription = filter.toString();
         logger.trace("Got a query with filter {}", filterDescription);
         DynamoDbEnhancedAsyncClient localClient = client;
         DynamoDBTableNameResolver localTableNameResolver = tableNameResolver;
@@ -419,7 +417,7 @@ public class DynamoDBPersistenceService implements QueryablePersistenceService {
                     item.getClass().getSimpleName(), dtoClass.getSimpleName(), tableName);
 
             QueryEnhancedRequest queryExpression = DynamoDBQueryUtils.createQueryExpression(dtoClass,
-                    localTableNameResolver.getTableSchema(), item, filter, unitProvider);
+                    localTableNameResolver.getTableSchema(), item, alias, filter, unitProvider);
 
             CompletableFuture<List<DynamoDBItem<?>>> itemsFuture = new CompletableFuture<>();
             final SdkPublisher<? extends DynamoDBItem<?>> itemPublisher = table.query(queryExpression).items();
@@ -645,7 +643,8 @@ public class DynamoDBPersistenceService implements QueryablePersistenceService {
             if (itemUnit != null) {
                 State convertedState = type.toUnit(itemUnit);
                 if (convertedState == null) {
-                    logger.error("Unexpected unit conversion failure: {} to item unit {}", state, itemUnit);
+                    LoggerFactory.getLogger(DynamoDBPersistenceService.class)
+                            .error("Unexpected unit conversion failure: {} to item unit {}", state, itemUnit);
                     throw new IllegalArgumentException(
                             String.format("Unexpected unit conversion failure: %s to item unit %s", state, itemUnit));
                 }
@@ -668,13 +667,5 @@ public class DynamoDBPersistenceService implements QueryablePersistenceService {
                         localExecutor.getQueue().size());
             }
         }
-    }
-
-    private String filterToString(FilterCriteria filter) {
-        return String.format(
-                "FilterCriteria@%s(item=%s, pageNumber=%d, pageSize=%d, time=[%s, %s, %s], state=[%s, %s of %s] )",
-                System.identityHashCode(filter), filter.getItemName(), filter.getPageNumber(), filter.getPageSize(),
-                filter.getBeginDate(), filter.getEndDate(), filter.getOrdering(), filter.getOperator(),
-                filter.getState(), filter.getState() == null ? "null" : filter.getState().getClass().getSimpleName());
     }
 }

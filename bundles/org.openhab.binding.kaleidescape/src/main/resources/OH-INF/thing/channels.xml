@@ -10,7 +10,7 @@
 		<description>
 			A Kaleidescape Movie Player (KPlayer, M Class [M300, M500, M700] or Cinema One 1st Gen)
 		</description>
-
+		<semantic-equipment-tag>MediaPlayer</semantic-equipment-tag>
 		<channel-groups>
 			<channel-group id="ui" typeId="ui">
 				<label>User Interface</label>
@@ -33,7 +33,7 @@
 			<property name="Control Protocol ID">unknown</property>
 			<property name="System Version">unknown</property>
 			<property name="Protocol Version">unknown</property>
-			<property name="thingTypeVersion">1</property>
+			<property name="thingTypeVersion">5</property>
 		</properties>
 
 		<config-description-ref uri="thing-type:kaleidescape:kaleidescapedevice"/>
@@ -45,7 +45,7 @@
 		<description>
 			A Kaleidescape Cinema One (2nd Generation) Player
 		</description>
-
+		<semantic-equipment-tag>MediaPlayer</semantic-equipment-tag>
 		<channel-groups>
 			<channel-group id="ui" typeId="c1-alto_ui">
 				<label>User Interface</label>
@@ -68,7 +68,7 @@
 			<property name="Control Protocol ID">unknown</property>
 			<property name="System Version">unknown</property>
 			<property name="Protocol Version">unknown</property>
-			<property name="thingTypeVersion">1</property>
+			<property name="thingTypeVersion">6</property>
 		</properties>
 
 		<config-description-ref uri="thing-type:kaleidescape:kaleidescapedevice"/>
@@ -80,7 +80,7 @@
 		<description>
 			A Kaleidescape Alto Player
 		</description>
-
+		<semantic-equipment-tag>MediaPlayer</semantic-equipment-tag>
 		<channel-groups>
 			<channel-group id="ui" typeId="c1-alto_ui">
 				<label>User Interface</label>
@@ -89,6 +89,10 @@
 			<channel-group id="detail" typeId="alto-strato_detail">
 				<label>Content Details</label>
 				<description>Contains Metadata About a Selected Item</description>
+			</channel-group>
+			<channel-group id="parental-control" typeId="parental-control">
+				<label>Parental Control</label>
+				<description>Adjust Parental Controls</description>
 			</channel-group>
 		</channel-groups>
 
@@ -99,7 +103,7 @@
 			<property name="Control Protocol ID">unknown</property>
 			<property name="System Version">unknown</property>
 			<property name="Protocol Version">unknown</property>
-			<property name="thingTypeVersion">1</property>
+			<property name="thingTypeVersion">6</property>
 		</properties>
 
 		<config-description-ref uri="thing-type:kaleidescape:kaleidescapedevice"/>
@@ -111,7 +115,7 @@
 		<description>
 			A Kaleidescape Strato Player
 		</description>
-
+		<semantic-equipment-tag>MediaPlayer</semantic-equipment-tag>
 		<channel-groups>
 			<channel-group id="ui" typeId="strato_ui">
 				<label>User Interface</label>
@@ -120,6 +124,10 @@
 			<channel-group id="detail" typeId="alto-strato_detail">
 				<label>Content Details</label>
 				<description>Contains Metadata About a Selected Item</description>
+			</channel-group>
+			<channel-group id="parental-control" typeId="parental-control">
+				<label>Parental Control</label>
+				<description>Adjust Parental Controls</description>
 			</channel-group>
 		</channel-groups>
 
@@ -130,7 +138,7 @@
 			<property name="Control Protocol ID">unknown</property>
 			<property name="System Version">unknown</property>
 			<property name="Protocol Version">unknown</property>
-			<property name="thingTypeVersion">1</property>
+			<property name="thingTypeVersion">6</property>
 		</properties>
 
 		<config-description-ref uri="thing-type:kaleidescape:kaleidescapedevice"/>
@@ -140,9 +148,18 @@
 		<label>User Interface</label>
 		<description>Controls and information for the player's on screen interface</description>
 		<channels>
-			<channel id="power" typeId="system.power"/>
-			<channel id="volume" typeId="system.volume"/>
-			<channel id="mute" typeId="system.mute"/>
+			<channel id="power" typeId="system.power">
+				<label>Power</label>
+				<description>Turn the zone On or Off (system standby)</description>
+			</channel>
+			<channel id="volume" typeId="system.volume">
+				<label>Volume</label>
+				<description>A virtual volume that tracks the volume control from the K app</description>
+			</channel>
+			<channel id="mute" typeId="system.mute">
+				<label>Mute</label>
+				<description>A virtual mute switch that tracks the mute status from the K app</description>
+			</channel>
 			<channel id="control" typeId="movie_control"/>
 			<channel id="title_name" typeId="title_name"/>
 			<channel id="play_mode" typeId="movie_play_mode"/>
@@ -150,6 +167,8 @@
 			<channel id="title_num" typeId="title_num"/>
 			<channel id="title_length" typeId="title_length"/>
 			<channel id="title_loc" typeId="title_loc"/>
+			<channel id="endtime" typeId="endtime"/>
+			<channel id="progress" typeId="progress"/>
 			<channel id="chapter_num" typeId="chapter_num"/>
 			<channel id="chapter_length" typeId="chapter_length"/>
 			<channel id="chapter_loc" typeId="chapter_loc"/>
@@ -172,6 +191,7 @@
 			<channel id="user_input" typeId="user_input"/>
 			<channel id="user_input_prompt" typeId="user_input_prompt"/>
 			<channel id="sendcmd" typeId="sendcmd"/>
+			<channel id="search" typeId="search"/>
 		</channels>
 	</channel-group-type>
 
@@ -180,9 +200,18 @@
 		<label>User Interface</label>
 		<description>Controls and information for the player's on screen interface</description>
 		<channels>
-			<channel id="power" typeId="system.power"/>
-			<channel id="volume" typeId="system.volume"/>
-			<channel id="mute" typeId="system.mute"/>
+			<channel id="power" typeId="system.power">
+				<label>Power</label>
+				<description>Turn the zone On or Off (system standby)</description>
+			</channel>
+			<channel id="volume" typeId="system.volume">
+				<label>Volume</label>
+				<description>A virtual volume that tracks the volume control from the K app</description>
+			</channel>
+			<channel id="mute" typeId="system.mute">
+				<label>Mute</label>
+				<description>A virtual mute switch that tracks the mute status from the K app</description>
+			</channel>
 			<channel id="control" typeId="movie_control"/>
 			<channel id="title_name" typeId="title_name"/>
 			<channel id="play_mode" typeId="movie_play_mode"/>
@@ -190,6 +219,8 @@
 			<channel id="title_num" typeId="title_num"/>
 			<channel id="title_length" typeId="title_length"/>
 			<channel id="title_loc" typeId="title_loc"/>
+			<channel id="endtime" typeId="endtime"/>
+			<channel id="progress" typeId="progress"/>
 			<channel id="chapter_num" typeId="chapter_num"/>
 			<channel id="chapter_length" typeId="chapter_length"/>
 			<channel id="chapter_loc" typeId="chapter_loc"/>
@@ -211,17 +242,27 @@
 			<channel id="user_input" typeId="user_input"/>
 			<channel id="user_input_prompt" typeId="user_input_prompt"/>
 			<channel id="sendcmd" typeId="sendcmd"/>
+			<channel id="search" typeId="search"/>
 		</channels>
 	</channel-group-type>
 
-	<!-- Strato UI channels (add *color channels for 4K/HDR info) -->
+	<!-- Strato UI channels (add *color channels and video-mode2 for 4K/HDR info) -->
 	<channel-group-type id="strato_ui">
 		<label>User Interface</label>
 		<description>Controls and information for the player's on screen interface</description>
 		<channels>
-			<channel id="power" typeId="system.power"/>
-			<channel id="volume" typeId="system.volume"/>
-			<channel id="mute" typeId="system.mute"/>
+			<channel id="power" typeId="system.power">
+				<label>Power</label>
+				<description>Turn the zone On or Off (system standby)</description>
+			</channel>
+			<channel id="volume" typeId="system.volume">
+				<label>Volume</label>
+				<description>A virtual volume that tracks the volume control from the K app</description>
+			</channel>
+			<channel id="mute" typeId="system.mute">
+				<label>Mute</label>
+				<description>A virtual mute switch that tracks the mute status from the K app</description>
+			</channel>
 			<channel id="control" typeId="movie_control"/>
 			<channel id="title_name" typeId="title_name"/>
 			<channel id="play_mode" typeId="movie_play_mode"/>
@@ -229,6 +270,8 @@
 			<channel id="title_num" typeId="title_num"/>
 			<channel id="title_length" typeId="title_length"/>
 			<channel id="title_loc" typeId="title_loc"/>
+			<channel id="endtime" typeId="endtime"/>
+			<channel id="progress" typeId="progress"/>
 			<channel id="chapter_num" typeId="chapter_num"/>
 			<channel id="chapter_length" typeId="chapter_length"/>
 			<channel id="chapter_loc" typeId="chapter_loc"/>
@@ -236,6 +279,7 @@
 			<channel id="movie_location" typeId="movie_location"/>
 			<channel id="aspect_ratio" typeId="aspect_ratio"/>
 			<channel id="video_mode" typeId="video_mode"/>
+			<channel id="video-mode2" typeId="video-mode2"/>
 			<channel id="video_mode_hdmi" typeId="video_mode_hdmi"/>
 			<channel id="video_color" typeId="video_color"/>
 			<channel id="video_color_eotf" typeId="video_color_eotf"/>
@@ -254,6 +298,7 @@
 			<channel id="user_input" typeId="user_input"/>
 			<channel id="user_input_prompt" typeId="user_input_prompt"/>
 			<channel id="sendcmd" typeId="sendcmd"/>
+			<channel id="search" typeId="search"/>
 		</channels>
 	</channel-group-type>
 
@@ -267,6 +312,7 @@
 			<channel id="track" typeId="track"/>
 			<channel id="artist" typeId="artist"/>
 			<channel id="album" typeId="album"/>
+			<channel id="title" typeId="music_title"/>
 			<channel id="play_mode" typeId="music_play_mode"/>
 			<channel id="play_speed" typeId="music_play_speed"/>
 			<channel id="track_length" typeId="track_length"/>
@@ -327,11 +373,23 @@
 		</channels>
 	</channel-group-type>
 
+	<channel-group-type id="parental-control">
+		<label>Parental Control</label>
+		<description>Adjust Parental Controls</description>
+		<channels>
+			<channel id="level" typeId="parental-control-level"/>
+		</channels>
+	</channel-group-type>
+
 	<channel-type id="movie_control">
 		<item-type>Player</item-type>
 		<label>Control</label>
-		<description>Control movie playback e.g. Play/Pause/Next/Previous/Fast Forward/Rewind</description>
+		<description>Control movie playback, e.g., Play/Pause/Next/Previous/Fast Forward/Rewind</description>
 		<category>Player</category>
+		<tags>
+			<tag>Control</tag>
+			<tag>MediaControl</tag>
+		</tags>
 	</channel-type>
 
 	<channel-type id="title_name">
@@ -344,7 +402,11 @@
 	<channel-type id="movie_play_mode">
 		<item-type>String</item-type>
 		<label>Play Mode</label>
-		<description>The Current playback mode of the movie</description>
+		<description>The current playback mode of the movie</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Mode</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -352,6 +414,10 @@
 		<item-type>String</item-type>
 		<label>Play Speed</label>
 		<description>The speed of playback scanning</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Speed</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -366,14 +432,45 @@
 		<item-type>Number:Time</item-type>
 		<label>Title Length</label>
 		<description>The total running time of the currently playing movie</description>
-		<state readOnly="true" pattern="%d %unit%"/>
+		<tags>
+			<tag>Measurement</tag>
+			<tag>Duration</tag>
+		</tags>
+		<state readOnly="true" pattern="%1$tT"/>
 	</channel-type>
 
 	<channel-type id="title_loc">
 		<item-type>Number:Time</item-type>
 		<label>Title Location</label>
 		<description>The running time elapsed of the currently playing movie</description>
-		<state readOnly="true" pattern="%d %unit%"/>
+		<tags>
+			<tag>Status</tag>
+			<tag>Duration</tag>
+		</tags>
+		<state readOnly="true" pattern="%1$tT"/>
+	</channel-type>
+
+	<channel-type id="endtime">
+		<item-type>DateTime</item-type>
+		<label>Title End Time</label>
+		<description>The date/time when the currently playing movie will end</description>
+		<category>Time</category>
+		<tags>
+			<tag>Status</tag>
+			<tag>Timestamp</tag>
+		</tags>
+		<state readOnly="true" pattern="%1$tl:%1$tM %1$tp"/>
+	</channel-type>
+
+	<channel-type id="progress">
+		<item-type>Dimmer</item-type>
+		<label>Title Progress</label>
+		<description>The percentage complete of the currently playing movie</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Progress</tag>
+		</tags>
+		<state pattern="%.0f%%"/>
 	</channel-type>
 
 	<channel-type id="chapter_num">
@@ -387,27 +484,43 @@
 		<item-type>Number:Time</item-type>
 		<label>Chapter Length</label>
 		<description>The total running time of the current chapter</description>
-		<state readOnly="true" pattern="%d %unit%"/>
+		<tags>
+			<tag>Measurement</tag>
+			<tag>Duration</tag>
+		</tags>
+		<state readOnly="true" pattern="%1$tT"/>
 	</channel-type>
 
 	<channel-type id="chapter_loc">
 		<item-type>Number:Time</item-type>
 		<label>Chapter Location</label>
 		<description>The running time elapsed of the current chapter</description>
-		<state readOnly="true" pattern="%d %unit%"/>
+		<tags>
+			<tag>Measurement</tag>
+			<tag>Duration</tag>
+		</tags>
+		<state readOnly="true" pattern="%1$tT"/>
 	</channel-type>
 
 	<channel-type id="movie_media_type">
 		<item-type>String</item-type>
 		<label>Media Type</label>
 		<description>The type of media that is currently playing</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>MediaControl</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
 	<channel-type id="movie_location">
 		<item-type>String</item-type>
 		<label>Movie Location</label>
-		<description>Identifies the location in the movie, ie: Main Content, Intermission, or End Credits</description>
+		<description>Identifies the location in the movie, i.e., Main content, Intermission, or End credits</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Info</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -425,10 +538,21 @@
 		<state readOnly="true"/>
 	</channel-type>
 
+	<channel-type id="video-mode2">
+		<item-type>String</item-type>
+		<label>Video Mode 2</label>
+		<description>Identifies characteristics of the HDMI video mode currently active</description>
+		<state readOnly="true"/>
+	</channel-type>
+
 	<channel-type id="video_mode_composite">
 		<item-type>String</item-type>
 		<label>Video Mode - Composite</label>
 		<description>Identifies the video currently active on the Composite video output</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Mode</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -436,6 +560,10 @@
 		<item-type>String</item-type>
 		<label>Video Mode - Component</label>
 		<description>Identifies the video currently active on the Component video output</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Mode</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -443,13 +571,17 @@
 		<item-type>String</item-type>
 		<label>Video Mode - HDMI</label>
 		<description>Identifies the video currently active on the HDMI video output</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Mode</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
 	<channel-type id="video_color" advanced="true">
 		<item-type>String</item-type>
 		<label>Video Color</label>
-		<description>Provides Color Information About the Current Video Output</description>
+		<description>Provides color information about the current video output</description>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -457,6 +589,10 @@
 		<item-type>String</item-type>
 		<label>Video Color EOTF</label>
 		<description>Identifies the Electro-Optical Transfer Function standard of the current video output</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Color</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -471,6 +607,10 @@
 		<item-type>String</item-type>
 		<label>Content Color EOTF</label>
 		<description>Identifies the Electro-Optical Transfer Function standard of the currently playing content</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Color</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -565,26 +705,42 @@
 	<channel-type id="music_control">
 		<item-type>Player</item-type>
 		<label>Control</label>
-		<description>Control music playback e.g. Play/Pause/Next/Previous/Fforward/Rewind</description>
+		<description>Control music playback, e.g., Play/Pause/Next/Previous/Fast Forward/Rewind</description>
 		<category>Player</category>
+		<tags>
+			<tag>Control</tag>
+			<tag>MediaControl</tag>
+		</tags>
 	</channel-type>
 
 	<channel-type id="repeat">
 		<item-type>Switch</item-type>
 		<label>Repeat</label>
 		<description>Controls repeat playback for music</description>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Mode</tag>
+		</tags>
 	</channel-type>
 
 	<channel-type id="random">
 		<item-type>Switch</item-type>
 		<label>Random</label>
 		<description>Controls random playback for music</description>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Mode</tag>
+		</tags>
 	</channel-type>
 
 	<channel-type id="track">
 		<item-type>String</item-type>
 		<label>Track</label>
 		<description>The name of the currently playing track</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Info</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -592,6 +748,10 @@
 		<item-type>String</item-type>
 		<label>Artist</label>
 		<description>The name of the currently playing artist</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Info</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -599,6 +759,21 @@
 		<item-type>String</item-type>
 		<label>Album</label>
 		<description>The name of the currently playing album</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Info</tag>
+		</tags>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="music_title" advanced="true">
+		<item-type>String</item-type>
+		<label>Music Title</label>
+		<description>The raw output from the MUSIC_TITLE API response</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Info</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -606,6 +781,10 @@
 		<item-type>String</item-type>
 		<label>Play Mode</label>
 		<description>The current playback mode of the music</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Mode</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -613,6 +792,10 @@
 		<item-type>String</item-type>
 		<label>Play Speed</label>
 		<description>The speed of playback scanning</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Speed</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -620,20 +803,32 @@
 		<item-type>Number:Time</item-type>
 		<label>Track Length</label>
 		<description>The total running time of the current playing track</description>
-		<state readOnly="true" pattern="%d %unit%"/>
+		<tags>
+			<tag>Measurement</tag>
+			<tag>Duration</tag>
+		</tags>
+		<state readOnly="true" pattern="%1$tT"/>
 	</channel-type>
 
 	<channel-type id="track_position">
 		<item-type>Number:Time</item-type>
 		<label>Track Position</label>
 		<description>The running time elapsed of the current playing track</description>
-		<state readOnly="true" pattern="%d %unit%"/>
+		<tags>
+			<tag>Measurement</tag>
+			<tag>Duration</tag>
+		</tags>
+		<state readOnly="true" pattern="%1$tT"/>
 	</channel-type>
 
 	<channel-type id="track_progress">
 		<item-type>Number</item-type>
 		<label>Track Progress</label>
 		<description>The percentage complete of the current playing track</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Progress</tag>
+		</tags>
 		<state readOnly="true" pattern="%d %%"/>
 	</channel-type>
 
@@ -663,7 +858,7 @@
 	<channel-type id="type">
 		<item-type>String</item-type>
 		<label>Detail Type</label>
-		<description>Indicates If the currently selected item is a Movie or Album</description>
+		<description>Indicates whether the currently selected item is a movie or an album</description>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -671,6 +866,10 @@
 		<item-type>String</item-type>
 		<label>Movie Title</label>
 		<description>The title of the selected Movie</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Info</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -678,6 +877,10 @@
 		<item-type>String</item-type>
 		<label>Album Title</label>
 		<description>The title of the selected Album</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Info</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -706,6 +909,10 @@
 		<item-type>String</item-type>
 		<label>Rating</label>
 		<description>The MPAA rating of the selected Movie</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Info</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -713,6 +920,10 @@
 		<item-type>String</item-type>
 		<label>Year</label>
 		<description>The release year of the selected item</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Info</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -720,13 +931,21 @@
 		<item-type>Number:Time</item-type>
 		<label>Running time</label>
 		<description>The total running time of the selected item</description>
-		<state readOnly="true"/>
+		<tags>
+			<tag>Status</tag>
+			<tag>Duration</tag>
+		</tags>
+		<state readOnly="true" pattern="%1$tT"/>
 	</channel-type>
 
 	<channel-type id="actors">
 		<item-type>String</item-type>
 		<label>Actors</label>
 		<description>A list of actors appearing in the selected Movie</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Info</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -734,6 +953,10 @@
 		<item-type>String</item-type>
 		<label>Artist</label>
 		<description>The artist of the selected Album</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Info</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -741,6 +964,10 @@
 		<item-type>String</item-type>
 		<label>Directors</label>
 		<description>A list of directors of the selected Movie</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Info</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -748,13 +975,17 @@
 		<item-type>String</item-type>
 		<label>Genres</label>
 		<description>A list of genres of the selected item</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Info</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
 	<channel-type id="rating_reason">
 		<item-type>String</item-type>
 		<label>Rating Reason</label>
-		<description>An explaination of why the selected movie received its rating</description>
+		<description>An explanation of why the selected movie received its rating</description>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -776,6 +1007,10 @@
 		<item-type>String</item-type>
 		<label>Color Description</label>
 		<description>Indicates if the selected Movie is in color, black and white, etc.</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Color</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -796,15 +1031,41 @@
 	<channel-type id="disc_location">
 		<item-type>String</item-type>
 		<label>Disc Location</label>
-		<description>Indicates where the disc for the selected item is currently residing in the system (ie Vault, Tray, etc.)</description>
+		<description>Indicates where the disc for the selected item is currently residing in the system (i.e., Vault, Tray,
+			etc.)</description>
 		<state readOnly="true"/>
 	</channel-type>
 
 	<channel-type id="sendcmd" advanced="true">
 		<item-type>String</item-type>
 		<label>Send Command</label>
-		<description>Send a command to the component</description>
+		<description>Send a command to the component (write-only)</description>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+
+	<channel-type id="search">
+		<item-type>String</item-type>
+		<label>Search</label>
+		<description>Executes a movie title search in the UI for the given string (write-only)</description>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+
+	<channel-type id="parental-control-level">
+		<item-type>Number</item-type>
+		<label>Parental Control Level</label>
+		<description>Retrieves or sets the parental control level (1-8)</description>
+		<state>
+			<options>
+				<option value="1">Only TV-Y</option>
+				<option value="2">TV-Y7 and Below</option>
+				<option value="3">G and Below</option>
+				<option value="4">PG and Below</option>
+				<option value="5">PG-13 and Below</option>
+				<option value="6">R and Below</option>
+				<option value="7">NC-17 and Below</option>
+				<option value="8">All Movies</option>
+			</options>
+		</state>
 	</channel-type>
 
 </thing:thing-descriptions>

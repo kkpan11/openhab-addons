@@ -2,18 +2,6 @@
 
 This binding provides access to your Mercedes Benz vehicle like _Mercedes Me_ Smartphone App.
 
-## Installation Instructions
-
-First time users shall follow the following sequence
-
-1. Setup and configure [Bridge](#bridge-configuration)
-2. Follow the [Bridge Authorization](#bridge-authorization) process
-3. [Discovery](#discovery) shall find now vehicles associated to your account
-4. Add your vehicle from discovery and [configure](#thing-configuration) it with correct VIN
-5. Connect your desired items in UI or [text-configuration](#full-example)
-6. Optional: you can [Discover your Vehicle](#discover-your-vehicle) more deeply
-7. In case of problems check [Troubleshooting](#troubleshooting) section
-
 ## Supported Things
 
 | Type            | ID            | Description                                     |
@@ -27,7 +15,7 @@ First time users shall follow the following sequence
 
 The Mercedes Me binding is based on the API of the Smartphone App.
 You have an account which is associated to one or more vehicles.
-Setup the Mercedes Me Account Bridge with your email address.
+Setup the Mercedes Me Account Bridge with your email address and password.
 After successful authorization your associated vehicles are found automatically.
 There's no manual discovery!
 
@@ -35,26 +23,25 @@ There's no manual discovery!
 
 Bridge needs configuration in order to connect properly to your Mercedes Me account.
 
-| Name            | Type    | Description                             | Default     | Required | Advanced |
-|-----------------|---------|-----------------------------------------|-------------|----------|----------|
-| email           | text    | Mercedes Me registered email Address    | N/A         | yes      | no       |
-| pin             | text    | Mercedes Me Smartphone App PIN          | N/A         | no       | no       |
-| region          | text    | Your region                             | EU          | yes      | no       |
-| refreshInterval | integer | API refresh interval                    | 15          | yes      | no       |
-| callbackIP      | text    | IP Address of openHAB Device            | N/A         | yes      | yes      |
-| callbackPort    | integer | Port Number of openHAB Device           | N/A         | yes      | yes      |
+| Name              | Type    | Description                                 | Default                   | Required |
+|-------------------|---------|---------------------------------------------|---------------------------|----------|
+| email             | text    | Email address for MercedesMe account        | N/A                       | yes      |
+| password          | text    | Password for MercedesMe account             | N/A                       | yes      |
+| pin               | text    | Mercedes Me Smartphone App PIN              | N/A                       | no       |
+| region            | text    | Your region                                 | EU                        | yes      |
+| refreshInterval   | integer | API refresh interval                        | 15                        | yes      |
 
 Set `region` to your location
 
 - `EU` : Europe and Rest of World
 - `NA` : North America
 - `AP` : Asia Pacific
-- `CN` : China 
+- `CN` : China
 
 Set `pin` to your Mercedes Me App PIN.
-Parameter is *not required*.
+Parameter is _not required_.
 Note `pin` is needed for some commands which are affecting **vehicle safety**.
-Commands like _unlock doors_ will result into an _unsafe state_: your vehicle is unlocked and is accessible to everybody. 
+Commands like _unlock doors_ will result into an _unsafe state_: your vehicle is unlocked and is accessible to everybody.
 
 Commands protected by PIN
 
@@ -62,46 +49,6 @@ Commands protected by PIN
 - Unlock Doors
 - Open / Ventilate Windows
 - Open / Lift Sunroof
-
-IP `callbackIP` and port `callbackPort` will be auto-detected. 
-If you're running on server with more than one network interface please select manually.
-
-### Bridge Authorization
-
-Authorization is needed to activate the Bridge which is connected to your Mercedes Me Account.
-The Bridge will indicate in the status headline if authorization is needed including the URL which needs to be opened in your browser.
-
-Three steps are needed
-
-1. Open the mentioned URL like 192.168.x.x:8090/mb-auth 
-Opening this URL will request a PIN  which will be send to your configured email.
-Check your Mail Account if you received the PIN.
-Click on _Continue_ to proceed with Step 2.
-
-2. Enter your PIN in the shown field.
-Leave GUID as identifier as it is.
-Click on _Submit_ button.
-
-3. Confirmation shall be shown that authorization was successful.
-
-In case of non successful authorization check your log for errors. 
-Below screenshots are illustrating the authorization flow.
-
-### After Bridge Setup
-
-<img src="./doc/OH-Step0.png" width="500" height="240"/>
-
-### Authorization Step 1
-
-<img src="./doc/OH-Step1.png" width="500" height="200"/>
-
-### Authorization Step 2
-
-<img src="./doc/OH-Step2.png" width="500" height="200"/>
-
-### Authorization Step 3
-
-<img src="./doc/OH-Step3.png" width="400" height="130"/>
 
 ## Thing Configuration
 
@@ -150,20 +97,20 @@ Group name: `vehicle`
 | command-capabilities  | String              |  Command Capabilities         | X    |       |    X     |
 | proto-update          | String              |  Last Vehicle Data Update     | X    |       |    X     |
 
-Advanced channels are used to identify problems. 
+Advanced channels are used to identify problems.
 If you encounter problems with this binding follow the instructions from [Troubleshooting](#troubleshooting) section.
 
 #### Lock Status Mapping
 
-State 
+State
 
-- 0 : Locked
-- 1 : Unlocked
+- 2 : Locked
+- 0 : Unlocked
 
-Command 
+Command
 
-- 0 : Lock
-- 1 : Unlock
+- 2 : Lock
+- 0 : Unlock
 
 Triggers `DOORSLOCK` and `DOORSUNLOCK` from [Command Name Mapping](#command-name-mapping)
 
@@ -177,7 +124,7 @@ State
 
 Command
 
-- 0 : Ventilate 
+- 0 : Ventilate
 - 1 : Close
 - 2 : Open
 
@@ -190,7 +137,7 @@ Triggers `WINDOWVENTILATE`, `WINDOWCLOSE` and `WINDOWOPEN` from [Command Name Ma
 
 #### Ignition Mapping
 
-State 
+State
 
 - 0 : Off
 - 2 : Ready
@@ -224,7 +171,7 @@ States and controls are depending on your vehicle capabilities.
 | sunroof             | Number               |  Sun roof                    | X    | X     |
 
 #### Rooftop Mapping
-            
+
 - 0 : Unlocked
 - 1 : Open and locked
 - 2 : Closed and locked
@@ -301,11 +248,11 @@ State representing current window position.
 #### Rear Right Blind Channel Mapping
 
 - not available yet
- 
+
 #### Rear Left Blind Channel Mapping
 
 - not available yet
- 
+
 #### Rear Blind Channel Mapping
 
 - not available yet
@@ -358,7 +305,7 @@ Triggers `- PRECONDCONFIGURESEATS` from [Command Name Mapping](#command-name-map
 Pre-configure selected zone with desired temperature.
 Minimum and maximum temperature depends on your local settings either Degree Celsius or Fahrenheit.
 
-Celsius 
+Celsius
 
 - Minimum : 16 °C
 - Maximum : 28 °C
@@ -372,10 +319,10 @@ Fahrenheit
 
 Triggers `TEMPERATURECONFIGURE` from [Command Name Mapping](#command-name-mapping)
 
-#### AC Precondition Control 
+#### AC Precondition Control
 
 Triggers `PRECONDSTART` and `PRECONDSTOP` from [Command Name Mapping](#command-name-mapping)
- 
+
 #### AC Precondition Status Mapping
 
 - 0 : No Request
@@ -383,7 +330,7 @@ Triggers `PRECONDSTART` and `PRECONDSTOP` from [Command Name Mapping](#command-n
 - 2 : Available after Restart Engine
 - 3 : Not Possible, Charging not Finished
 - 4 : General Error</option>
- 
+
 #### Auxiliary Heating Switch
 
 Triggers `AUXHEATSTART` and `AUXHEATSTOP` from [Command Name Mapping](#command-name-mapping)
@@ -418,7 +365,7 @@ States and controls are depending on your vehicle capabilities.
 | coolant-fluid       | Switch               |  Coolant Fluid Low Warning      |     | X      | X          |
 | engine              | Switch               |  Engine Warning                 |     | X      | X          |
 | tires-rdk           | Number               |  Tire Pressure Warnings         | X   | X      | X          |
-| service-days        | Number               |  Next Service in *x* days       | X   | X      | X          |
+| service-days        | Number               |  Next Service in _x_ days       | X   | X      | X          |
 
 #### Starter Battery Mapping
 
@@ -444,22 +391,24 @@ Group name: `range`
 
 All channels read-only.
 
-| Channel          | Type                 |  Description                 | bev | hybrid | combustion |
-|------------------|----------------------|------------------------------|-----|--------|------------|
-| mileage          | Number:Length        |  Total Mileage               | X   | X      | X          |
-| home-distance    | Number:Length        |  Distance to Home            | X   | X      | X          |
-| soc              | Number:Dimensionless |  Battery State of Charge     | X   | X      |            |
-| charged          | Number:Energy        |  Charged Battery Energy      | X   | X      |            |
-| uncharged        | Number:Energy        |  Uncharged Battery Energy    | X   | X      |            |
-| range-electric   | Number:Length        |  Electric Range              | X   | X      |            |
-| radius-electric  | Number:Length        |  Electric Radius for Map     | X   | X      |            |
-| fuel-level       | Number:Dimensionless |  Fuel Level in Percent       |     | X      | X          |
-| fuel-remain      | Number:Volume        |  Remaining Fuel              |     | X      | X          |
-| fuel-open        | Number:Volume        |  Open Fuel Capacity          |     | X      | X          |
-| range-fuel       | Number:Length        |  Fuel Range                  |     | X      | X          |
-| radius-fuel      | Number:Length        |  Fuel Radius for Map         |     | X      | X          |
-| range-hybrid     | Number:Length        |  Hybrid Range                |     | X      |            |
-| radius-hybrid    | Number:Length        |  Hybrid Radius for Map       |     | X      |            |
+| Channel               | Type                 |  Description                    | bev | hybrid | combustion |
+|-----------------------|----------------------|---------------------------------|-----|--------|------------|
+| mileage               | Number:Length        |  Total Mileage                  | X   | X      | X          |
+| home-distance         | Number:Length        |  Distance to Home               | X   | X      | X          |
+| soc                   | Number:Dimensionless |  Battery State of Charge        | X   | X      |            |
+| charged               | Number:Energy        |  Charged Battery Energy         | X   | X      |            |
+| uncharged             | Number:Energy        |  Uncharged Battery Energy       | X   | X      |            |
+| energy-to-max-soc     | Number:Energy        |  Energy to Maximum SoC          | X   | X      |            |
+| range-electric        | Number:Length        |  Electric Range                 | X   | X      |            |
+| radius-electric       | Number:Length        |  Electric Radius for Map        | X   | X      |            |
+| fuel-level            | Number:Dimensionless |  Fuel Level in Percent          |     | X      | X          |
+| fuel-remain           | Number:Volume        |  Remaining Fuel                 |     | X      | X          |
+| fuel-open             | Number:Volume        |  Open Fuel Capacity             |     | X      | X          |
+| range-fuel            | Number:Length        |  Fuel Range                     |     | X      | X          |
+| radius-fuel           | Number:Length        |  Fuel Radius for Map            |     | X      | X          |
+| range-hybrid          | Number:Length        |  Hybrid Range                   |     | X      |            |
+| radius-hybrid         | Number:Length        |  Hybrid Radius for Map          |     | X      |            |
+| adblue-level          | Number:Dimensionless |  AdBlue tank level in percent   |     |        | X          |
 
 Channels with `radius` are just giving a _guess_ which radius can be reached in a map display.
 
@@ -483,7 +432,7 @@ States and controls are depending on your vehicle capabilities.
 | power               | Number:Power         |  Current Charging Power                | X    |       |
 | end-time            | DateTime             |  Estimated Charging End                | X    |       |
 | program             | Number               |  Selected Charge Program               | X    | X     |
-| max-soc             | Number:Dimensionless |  Charge Target SoC                     | X    | X     |
+| max-soc             | Number:Dimensionless |  Maximum State of Charge               | X    | X     |
 | auto-unlock         | Switch               |  Auto Unlock Coupler after charging    | X    | X     |
 
 #### Charge Flap Mapping
@@ -516,6 +465,15 @@ States and controls are depending on your vehicle capabilities.
 - 5 : Slow Charging
 - 6 : Fast Charging
 - 7 : Discharging
+- 8 : Not charging
+- 9 : Slow Charging after reaching trip target
+- 10 : Charging after reaching trip target
+- 11 : Fast Charging after reaching trip target
+- 12 : Connected
+- 13 : AC Charging
+- 14 : DC Charging
+- 15 : Battery calibration active
+- 16 : Unknown
 
 #### Charge Error Mapping
 
@@ -582,18 +540,18 @@ All channels `read-only`
 #### Average Consumption
 
 You can configure different average consumption units like kWh per 100 kilometer or km per kWh.
-In your Mercedes Me App front page 
+In your Mercedes Me App front page
 
-- Burger Menu top left 
+- Burger Menu top left
 - Last Entry `Settings`
 - First Entry `Units`
 
-<img src="./doc/ElectricConsumptionUnits.png" width="300" height="300"/>
+<img src="./doc/ElectricConsumptionUnits.png" alt="Electric Consumption Units" width="300" height="300"/>
 
 #### Trip Duration
 
 Shown as String in format `d days, HH:mm`.
-If duration is below 24 hours format is `HH:mm`. 
+If duration is below 24 hours format is `HH:mm`.
 
 ### ECO Score
 
@@ -610,11 +568,10 @@ All channels `read-only`
 
 The Mercedes ECO Score is aimed to improve your driving behavior.
 
-- Acceleration Score: smooth acceleration e.g. use *eco driving setting*
-- Coasting Score: ideally use only *recuperation* instead of brake
-- Constant Score: drive at constant speed e.g. use *cruise control*
-- Bonus Range: assumed bonus range vs. a *very sportive driver*
-
+- Acceleration Score: smooth acceleration e.g. use _eco driving setting_
+- Coasting Score: ideally use only _recuperation_ instead of brake
+- Constant Score: drive at constant speed e.g. use _cruise control_
+- Bonus Range: assumed bonus range vs. a _very sportive driver_
 
 ### Position
 
@@ -657,10 +614,10 @@ All channels `read-only`
 | pressure-front-right     | Number:Pressure      |  Tire Pressure Front Right      |
 | pressure-rear-left       | Number:Pressure      |  Tire Pressure Rear Left        |
 | pressure-rear-right      | Number:Pressure      |  Tire Pressure Rear Right       |
-| sensor-available         | Number               |  Tire Sensor Available          | 
+| sensor-available         | Number               |  Tire Sensor Available          |
 | marker-front-left        | Number               |  Tire Marker Front Left         |
-| marker-front-right       | Number               |  Tire Marker Front Right        | 
-| marker-rear-left         | Number               |  Tire Marker Rear Left          | 
+| marker-front-right       | Number               |  Tire Marker Front Right        |
+| marker-rear-left         | Number               |  Tire Marker Rear Left          |
 | marker-rear-right        | Number               |  Tire Marker Rear Right         |
 | last-update              | DateTime             |  Timestamp of last Measurement  |
 
@@ -740,7 +697,7 @@ Send lock/unlock or temperatures in a short period of time will result in failur
 
 ## Vehicle Actions
 
-Actions for `vehicle` [thing}(#vehicle) are provided. 
+Actions for `vehicle` [thing](#vehicle) are provided.
 
 ### `sendPOI`
 
@@ -756,20 +713,20 @@ This POI can be used as navigation destination.
 | street      | String        | POI street name         |           |
 | postalCode  | String        | POI postal code         |           |
 
-**Example Eiffel Tower**
+#### Example Eiffel Tower
 
 Required information
 
-```
-        val mercedesmeActions = getActions("mercedesme","mercedesme:bev:4711:eqa")
-        mercedesmeActions.sendPOI("Eiffel Tower",48.85957476434348,2.2939068084684853)
+```java
+val mercedesmeActions = getActions("mercedesme","mercedesme:bev:4711:eqa")
+mercedesmeActions.sendPOI("Eiffel Tower",48.85957476434348,2.2939068084684853)
 ```
 
 Full information
 
-```
-        val mercedesmeActions = getActions("mercedesme","mercedesme:bev:4711:eqa")
-        mercedesmeActions.sendPOI("Eiffel Tower",48.85957476434348,2.2939068084684853,"Paris","Av. Gustave Eiffel", "75007")
+```java
+val mercedesmeActions = getActions("mercedesme","mercedesme:bev:4711:eqa")
+mercedesmeActions.sendPOI("Eiffel Tower",48.85957476434348,2.2939068084684853,"Paris","Av. Gustave Eiffel", "75007")
 ```
 
 ## Discover your Vehicle
@@ -777,19 +734,19 @@ Full information
 There's a big variety of vehicles with different features and different command capabilities.
 During discovery the capabilities of your vehicle are identified.
 They are stored in `Vehicle Properties` as shown below.
-You can check in beforehand if features like _Charge Program Configuration_ or _HVAC Configuration_ are supported or not. 
+You can check in beforehand if features like _Charge Program Configuration_ or _HVAC Configuration_ are supported or not.
 
-<img src="./doc/OH-capabilities.png" width="500" height="280"/>
+<img src="./doc/OH-capabilities.png" alt="Screenshot showing vehicle capabilities in openHAB" width="500" height="280"/>
 
-If you want to dive deeper see [Troubleshooting](#troubleshooting) `feature-capabilities` and `command-capabilities` to evaluate the exact capabilities. 
+If you want to dive deeper see [Troubleshooting](#troubleshooting) `feature-capabilities` and `command-capabilities` to evaluate the exact capabilities.
 
 ## Troubleshooting
 
 In order to be able to analyze problems 3 advanced channels are placed in the vehicle group.
 
-* `feature-capabilities` - showing which feature your vehicle is equipped with
-* `command-capabilities` - showing which commands can be sent to your vehicle
-* `proto-update` - latest update of your vehicle data
+- `feature-capabilities` - showing which feature your vehicle is equipped with
+- `command-capabilities` - showing which commands can be sent to your vehicle
+- `proto-update` - latest update of your vehicle data
 
 In case you find problems regarding this binding add items to these 3 channels.
 The items are reporting Strings in JSON format.
@@ -797,14 +754,14 @@ Vehicle Identification Number (VIN) isn't part of data.
 GPS data which is showing your location is anonymized.
 Please double check yourself no critical data is inside.
 The content of these items shall be used to create a problem report.
-During development the `proto-update`  contains an entry with binding version information.
+During development the `proto-update` contains an entry with binding version information.
 
-```
-    "bindingInfo": {
-        "oh-bundle": "4.1.0.202309241814",
-        "version": "2.2-alpha",
-        "vehicle": "mercedesme:bev"
-    }
+```json
+"bindingInfo": {
+    "oh-bundle": "4.1.0.202309241814",
+    "version": "2.2-alpha",
+    "vehicle": "mercedesme:bev"
+}
 ```
 
 Keep these 3 channels disconnected during normal operation.
@@ -814,7 +771,7 @@ Keep these 3 channels disconnected during normal operation.
 ### Things file
 
 ```java
-Bridge mercedesme:account:4711   "Mercedes Me John Doe" [ email="YOUR_MAIL_ADDRESS", region="EU", pin=9876, refreshInterval=15] {
+Bridge mercedesme:account:4711   "Mercedes Me John Doe" [ email="YOUR_MAIL_ADDRESS", region="EU", pin=9876, refreshToken="abc", refreshInterval=15] {
          Thing bev eqa           "Mercedes EQA"        [ vin="VEHICLE_VIN", batteryCapacity=66.5]
 }
 ```
@@ -858,35 +815,35 @@ Switch                  EQA_WashWater               {channel="mercedesme:bev:471
 Number                  EQA_TirePressureWarn        {channel="mercedesme:bev:4711:eqa:service#tires-rdk" }
 Number                  EQA_ServiceInDays           {channel="mercedesme:bev:4711:eqa:service#service-days" }
 
-Number:Length           EQA_Mileage                 {channel="mercedesme:bev:4711:eqa:range#mileage" }
-Number:Length           EQA_Range                   {channel="mercedesme:bev:4711:eqa:range#range-electric" }
-Number:Length           EQA_RangeRadius             {channel="mercedesme:bev:4711:eqa:range#radius-electric" }
-Number:Dimensionless    EQA_SoC                     {channel="mercedesme:bev:4711:eqa:range#soc" }
-Number:Energy           EQA_BatteryCharged          {channel="mercedesme:bev:4711:eqa:range#charged" }
-Number:Energy           EQA_BatteryUncharged        {channel="mercedesme:bev:4711:eqa:range#uncharged" }
+Number:Length           EQA_Mileage                 {channel="mercedesme:bev:4711:eqa:range#mileage", stateDescription=" " [pattern="%d %unit%", readOnly=true], unit="km"}
+Number:Length           EQA_Range                   {channel="mercedesme:bev:4711:eqa:range#range-electric", stateDescription=" " [pattern="%d %unit%", readOnly=true], unit="km"}
+Number:Length           EQA_RangeRadius             {channel="mercedesme:bev:4711:eqa:range#radius-electric", stateDescription=" " [pattern="%d %unit%", readOnly=true], unit="km"}
+Number:Dimensionless    EQA_SoC                     {channel="mercedesme:bev:4711:eqa:range#soc", stateDescription=" " [pattern="%.0f %unit%", readOnly=true], unit="%"}
+Number:Energy           EQA_BatteryCharged          {channel="mercedesme:bev:4711:eqa:range#charged", stateDescription=" " [pattern="%.2f %unit%", readOnly=true], unit="kWh"}
+Number:Energy           EQA_BatteryUncharged        {channel="mercedesme:bev:4711:eqa:range#uncharged", stateDescription=" " [pattern="%.2f %unit%", readOnly=true], unit="kWh"}
 
 Number                  EQA_ChargeFlap              {channel="mercedesme:bev:4711:eqa:charge#charge-flap" }
 Number                  EQA_CouplerLock             {channel="mercedesme:bev:4711:eqa:charge#coupler-lock" }
 Switch                  EQA_ChargeActive            {channel="mercedesme:bev:4711:eqa:charge#active" }
-Number:Power            EQA_ChargePower             {channel="mercedesme:bev:4711:eqa:charge#power" }
+Number:Power            EQA_ChargePower             {channel="mercedesme:bev:4711:eqa:charge#power", stateDescription=" " [pattern="%.1f %unit%", readOnly=true], unit="kW"}
 DateTime                EQA_ChargeTimeEstimate      {channel="mercedesme:bev:4711:eqa:charge#end-time" }
 Number                  EQA_ChargeProgram           {channel="mercedesme:bev:4711:eqa:charge#program" }
-Number:Dimensionless    EQA_ProgramMaxSoc           {channel="mercedesme:bev:4711:eqa:charge#max-soc" }
+Number:Dimensionless    EQA_ProgramMaxSoc           {channel="mercedesme:bev:4711:eqa:charge#max-soc", stateDescription=" " [pattern="%.0f %unit%", readOnly=false], unit="%"}
 
-Number:Length           EQA_TripDistance            {channel="mercedesme:bev:4711:eqa:trip#distance" }
+Number:Length           EQA_TripDistance            {channel="mercedesme:bev:4711:eqa:trip#distance", stateDescription=" " [pattern="%.1f %unit%", readOnly=true], unit="km"}
 String                  EQA_TripDuration            {channel="mercedesme:bev:4711:eqa:trip#time" }
-Number:Speed            EQA_TripAvgSpeed            {channel="mercedesme:bev:4711:eqa:trip#avg-speed" }
+Number:Speed            EQA_TripAvgSpeed            {channel="mercedesme:bev:4711:eqa:trip#avg-speed", stateDescription=" " [pattern="%.1f %unit%", readOnly=true], unit="km/h"}
 Number                  EQA_TripAvgConsumption      {channel="mercedesme:bev:4711:eqa:trip#cons-ev" }
 String                  EQA_AvgConsumptionUnit      {channel="mercedesme:bev:4711:eqa:trip#cons-ev-unit" }
 
-Number:Angle            EQA_Heading                 {channel="mercedesme:bev:4711:eqa:position#heading" }  
+Number:Angle            EQA_Heading                 {channel="mercedesme:bev:4711:eqa:position#heading", stateDescription=" " [pattern="%d %unit%", readOnly=true], unit="°"}
 Location                EQA_GPSLocation             {channel="mercedesme:bev:4711:eqa:position#gps" }
 Number                  EQA_Signal                  {channel="mercedesme:bev:4711:eqa:position#signal" }
 
-Number:Pressure         EQA_PressureFrontLeft       {channel="mercedesme:bev:4711:eqa:tires#pressure-front-left" }
-Number:Pressure         EQA_PressureFrontRight      {channel="mercedesme:bev:4711:eqa:tires#pressure-front-right" }
-Number:Pressure         EQA_PressureRearLeft        {channel="mercedesme:bev:4711:eqa:tires#pressure-rear-left" }
-Number:Pressure         EQA_PressureRearRight       {channel="mercedesme:bev:4711:eqa:tires#pressure-rear-right" }
+Number:Pressure         EQA_PressureFrontLeft       {channel="mercedesme:bev:4711:eqa:tires#pressure-front-left", stateDescription=" " [pattern="%.1f %unit%", readOnly=true], unit="bar"}
+Number:Pressure         EQA_PressureFrontRight      {channel="mercedesme:bev:4711:eqa:tires#pressure-front-right", stateDescription=" " [pattern="%.1f %unit%", readOnly=true], unit="bar"}
+Number:Pressure         EQA_PressureRearLeft        {channel="mercedesme:bev:4711:eqa:tires#pressure-rear-left", stateDescription=" " [pattern="%.1f %unit%", readOnly=true], unit="bar"}
+Number:Pressure         EQA_PressureRearRight       {channel="mercedesme:bev:4711:eqa:tires#pressure-rear-right", stateDescription=" " [pattern="%.1f %unit%", readOnly=true], unit="bar"}
 DateTime                EQA_MeasurementTime         {channel="mercedesme:bev:4711:eqa:tires#last-update" }
 
 Number                  EQA_CommandName             {channel="mercedesme:bev:4711:eqa:command#cmd-name" }
@@ -896,14 +853,14 @@ DateTime                EQA_CommandTimestamp        {channel="mercedesme:bev:471
 
 ### POI ruleExample
 
-```
+```java
 // send POI from JSON String item
 rule "Send POI"
     when
-        Item POIJsonString changed 
+        Item POIJsonString changed
     then
         // decode JSON
-        val json = POIJsonString.state.toString        
+        val json = POIJsonString.state.toString
         val title = transform("JSONPATH", "$.title", json)
         val lat = transform("JSONPATH", "$.latitude", json)
         val lon = transform("JSONPATH", "$.longitude", json)
@@ -913,4 +870,3 @@ rule "Send POI"
         mercedesmeActions.sendPoi(title,lat,lon)
 end
 ```
-

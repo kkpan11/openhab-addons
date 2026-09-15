@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -26,6 +27,7 @@ import org.openhab.binding.chromecast.internal.ChromecastStatusUpdater;
 import org.openhab.binding.chromecast.internal.action.ChromecastActions;
 import org.openhab.binding.chromecast.internal.config.ChromecastConfig;
 import org.openhab.core.audio.AudioSink;
+import org.openhab.core.common.ThreadPoolManager;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.PercentType;
 import org.openhab.core.thing.ChannelUID;
@@ -52,7 +54,16 @@ import su.litvak.chromecast.api.v2.ChromeCast;
  */
 @NonNullByDefault
 public class ChromecastHandler extends BaseThingHandler {
+
+    private static final String CHROMECAST_HANDLER_THREADPOOL_NAME = "chromecastBinding";
+
     private final Logger logger = LoggerFactory.getLogger(ChromecastHandler.class);
+
+    /**
+     * The thread pool used to schedule and run tasks.
+     */
+    private final ScheduledExecutorService executor = ThreadPoolManager
+            .getScheduledPool(CHROMECAST_HANDLER_THREADPOOL_NAME);
 
     /**
      * The actual implementation. A new one is created each time #initialize is called.
@@ -93,7 +104,7 @@ public class ChromecastHandler extends BaseThingHandler {
             localCoordinator = new Coordinator(this, thing, chromecast, config.refreshRate);
             coordinator = localCoordinator;
 
-            scheduler.submit(() -> {
+            executor.submit(() -> {
                 Coordinator c = coordinator;
                 if (c != null) {
                     c.initialize();
@@ -209,12 +220,21 @@ public class ChromecastHandler extends BaseThingHandler {
             DISCONNECTED
         }
 
-        private ConnectionState connectionState = ConnectionState.UNKNOWN;
+        private volatile ConnectionState connectionState = ConnectionState.UNKNOWN;
+
+        /**
+         * Set once {@link #destroy()} has run. The connect retry is scheduled from inside
+         * {@link #connect()}'s own failure path, which can run concurrently with (or be woken by the
+         * interrupt from) {@code destroy()}, so cancelling the futures is not by itself enough to stop
+         * the retry loop - the losing connect would simply re-arm it afterwards and this Coordinator
+         * would keep retrying, and keep calling back into an already disposed handler, forever.
+         */
+        private volatile boolean destroyed;
 
         private Coordinator(ChromecastHandler handler, Thing thing, ChromeCast chromeCast, long refreshRate) {
             this.chromeCast = chromeCast;
 
-            this.scheduler = new ChromecastScheduler(handler.scheduler, CONNECT_DELAY, this::connect, refreshRate,
+            this.scheduler = new ChromecastScheduler(handler.executor, CONNECT_DELAY, this::connect, refreshRate,
                     this::refresh);
             this.statusUpdater = new ChromecastStatusUpdater(thing, handler);
 
@@ -242,6 +262,7 @@ public class ChromecastHandler extends BaseThingHandler {
         }
 
         void destroy() {
+            destroyed = true;
             connectionState = ConnectionState.DISCONNECTING;
 
             chromeCast.unregisterConnectionListener(eventReceiver);
@@ -260,14 +281,29 @@ public class ChromecastHandler extends BaseThingHandler {
         }
 
         private void connect() {
+            if (destroyed) {
+                return;
+            }
             try {
                 chromeCast.connect();
+
+                if (destroyed) {
+                    // destroy() ran while this connect was in flight. The connection is already being
+                    // torn down, so updating status here would report a disposed handler as online.
+                    return;
+                }
 
                 statusUpdater.updateMediaStatus(null);
                 statusUpdater.updateStatus(ThingStatus.ONLINE);
 
                 connectionState = ConnectionState.CONNECTED;
             } catch (final IOException | GeneralSecurityException e) {
+                if (destroyed) {
+                    // destroy() ran while this connect was in flight (and may well be the reason it
+                    // failed). Rescheduling here would outlive the handler.
+                    logger.debug("Connect failed after dispose, not reconnecting: {}", e.getMessage());
+                    return;
+                }
                 logger.debug("Connect failed, trying to reconnect: {}", e.getMessage());
                 statusUpdater.updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR,
                         e.getMessage());
@@ -276,6 +312,9 @@ public class ChromecastHandler extends BaseThingHandler {
         }
 
         private void refresh() {
+            if (destroyed) {
+                return;
+            }
             commander.handleRefresh();
         }
     }

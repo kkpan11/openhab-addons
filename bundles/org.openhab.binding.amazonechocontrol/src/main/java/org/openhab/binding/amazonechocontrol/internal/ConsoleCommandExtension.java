@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,7 +12,8 @@
  */
 package org.openhab.binding.amazonechocontrol.internal;
 
-import java.util.Arrays;
+import static org.openhab.binding.amazonechocontrol.internal.AmazonEchoControlBindingConstants.BINDING_ID;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -40,8 +41,7 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
 
     @Activate
     public ConsoleCommandExtension(@Reference AmazonEchoControlHandlerFactory handlerFactory) {
-        super("amazonechocontrol", "Manage the AmazonEchoControl account");
-
+        super(BINDING_ID, "Manage the AmazonEchoControl account");
         this.handlerFactory = handlerFactory;
     }
 
@@ -83,7 +83,7 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
                 .filter(handler -> handler.getThing().getUID().getId().equals(accountId)).findAny();
         if (accountHandler.isPresent()) {
             console.println("Resetting account '" + accountId + "'");
-            accountHandler.get().setConnection(null);
+            accountHandler.get().resetConnection(true);
         } else {
             console.println("Account '" + accountId + "' not found.");
         }
@@ -91,7 +91,7 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
 
     @Override
     public List<String> getUsages() {
-        return Arrays.asList(buildCommandUsage(LIST_ACCOUNTS, "list all AmazonEchoControl accounts"), buildCommandUsage(
+        return List.of(buildCommandUsage(LIST_ACCOUNTS, "list all AmazonEchoControl accounts"), buildCommandUsage(
                 RESET_ACCOUNT + " <account_id>",
                 "resets the account connection (clears all authentication data) for the thing with the given id"));
     }

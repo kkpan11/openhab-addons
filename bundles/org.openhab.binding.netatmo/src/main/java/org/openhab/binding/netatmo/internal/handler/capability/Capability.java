@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -45,7 +45,6 @@ import org.openhab.core.types.Command;
  */
 @NonNullByDefault
 public class Capability {
-    protected final Thing thing;
     protected final CommonInterface handler;
     protected final ModuleType moduleType;
     protected final ThingUID thingUID;
@@ -56,9 +55,8 @@ public class Capability {
 
     Capability(CommonInterface handler) {
         this.handler = handler;
-        this.thing = handler.getThing();
-        this.thingUID = thing.getUID();
-        this.moduleType = ModuleType.from(thing.getThingTypeUID());
+        this.thingUID = getThing().getUID();
+        this.moduleType = ModuleType.from(getThing().getThingTypeUID());
     }
 
     public final @Nullable String setNewData(NAObject newData) {
@@ -78,9 +76,12 @@ public class Capability {
 
             if (newData instanceof HomeEvent homeEvent) {
                 updateHomeEvent(homeEvent);
-            } else if (newData instanceof WebhookEvent webhookEvent
-                    && webhookEvent.getEventType().validFor(moduleType)) {
-                updateWebhookEvent(webhookEvent);
+            } else if (newData instanceof WebhookEvent webhookEvent) {
+                if (webhookEvent.getEventType().validFor(moduleType)) {
+                    updateWebhookEvent(webhookEvent);
+                } else {
+                    // dropped
+                }
             } else if (newData instanceof Event event) {
                 updateEvent(event);
             }
@@ -100,50 +101,50 @@ public class Capability {
     }
 
     protected void beforeNewData() {
-        properties = new HashMap<>(thing.getProperties());
+        properties = new HashMap<>(getThing().getProperties());
         statusReason = null;
     }
 
-    protected void afterNewData(@Nullable NAObject newData) {
-        if (!properties.equals(thing.getProperties())) {
-            thing.setProperties(properties);
+    protected void afterNewData(@SuppressWarnings("unused") @Nullable NAObject newData) {
+        if (!properties.equals(getThing().getProperties())) {
+            getThing().setProperties(properties);
         }
         firstLaunch = false;
     }
 
-    protected void updateNAThing(NAThing newData) {
+    protected void updateNAThing(@SuppressWarnings("unused") NAThing newData) {
         // do nothing by default, can be overridden by subclasses
     }
 
-    protected void updateNAMain(NAMain newData) {
+    protected void updateNAMain(@SuppressWarnings("unused") NAMain newData) {
         // do nothing by default, can be overridden by subclasses
     }
 
-    protected void updateHomeEvent(HomeEvent newData) {
+    protected void updateHomeEvent(@SuppressWarnings("unused") HomeEvent newData) {
         // do nothing by default, can be overridden by subclasses
     }
 
-    protected void updateHomeStatus(HomeStatus newData) {
+    protected void updateHomeStatus(@SuppressWarnings("unused") HomeStatus newData) {
         // do nothing by default, can be overridden by subclasses
     }
 
-    protected void updateHomeData(HomeData newData) {
+    protected void updateHomeData(@SuppressWarnings("unused") HomeData newData) {
         // do nothing by default, can be overridden by subclasses
     }
 
-    protected void updateEvent(Event newData) {
+    protected void updateEvent(@SuppressWarnings("unused") Event newData) {
         // do nothing by default, can be overridden by subclasses
     }
 
-    protected void updateWebhookEvent(WebhookEvent newData) {
+    protected void updateWebhookEvent(@SuppressWarnings("unused") WebhookEvent newData) {
         // do nothing by default, can be overridden by subclasses
     }
 
-    protected void updateNADevice(Device newData) {
+    protected void updateNADevice(@SuppressWarnings("unused") Device newData) {
         // do nothing by default, can be overridden by subclasses
     }
 
-    protected void updateErrors(NAError error) {
+    protected void updateErrors(@SuppressWarnings("unused") NAError error) {
         // do nothing by default, can be overridden by subclasses
     }
 
@@ -153,7 +154,7 @@ public class Capability {
 
     public void expireData() {
         CommonInterface bridgeHandler = handler.getBridgeHandler();
-        if (bridgeHandler != null && handler.getCapabilities().getRefresh().isEmpty()) {
+        if (bridgeHandler != null && handler.getCapabilities().getOrDescendant(RefreshCapability.class).isEmpty()) {
             bridgeHandler.expireData();
         }
     }
@@ -162,11 +163,12 @@ public class Capability {
         // do nothing by default, can be overridden by subclasses
     }
 
-    public void updateHomeStatusModule(HomeStatusModule newData) {
+    public void updateHomeStatusModule(@SuppressWarnings("unused") HomeStatusModule newData) {
         // do nothing by default, can be overridden by subclasses
     }
 
-    public void handleCommand(String channelName, Command command) {
+    public void handleCommand(@SuppressWarnings("unused") String channelName,
+            @SuppressWarnings("unused") Command command) {
         // do nothing by default, can be overridden by subclasses
     }
 
@@ -176,5 +178,9 @@ public class Capability {
 
     public List<NAObject> updateReadings() {
         return List.of();
+    }
+
+    protected Thing getThing() {
+        return handler.getThing();
     }
 }

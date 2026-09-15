@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -18,6 +18,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -25,6 +26,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -38,6 +41,7 @@ import org.openhab.core.items.Item;
 import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.persistence.FilterCriteria;
 import org.openhab.core.persistence.HistoricItem;
+import org.openhab.core.persistence.PersistedItem;
 import org.openhab.core.persistence.PersistenceItemInfo;
 import org.openhab.core.persistence.PersistenceService;
 import org.openhab.core.persistence.QueryablePersistenceService;
@@ -71,10 +75,13 @@ public class MapDbPersistenceService implements QueryablePersistenceService {
     private static final Path DB_DIR = new File(OpenHAB.getUserDataFolder(), "persistence").toPath().resolve("mapdb");
     private static final Path BACKUP_DIR = DB_DIR.resolve("backup");
     private static final String DB_FILE_NAME = "storage.mapdb";
+    private static final long DEACTIVATE_TIMEOUT_MS = 30000; // 30 seconds
 
     private final Logger logger = LoggerFactory.getLogger(MapDbPersistenceService.class);
 
     private final ExecutorService threadPool = ThreadPoolManager.getPool(getClass().getSimpleName());
+    private final AtomicInteger pendingTasks = new AtomicInteger(0);
+    private volatile boolean active;
 
     /**
      * holds the local instance of the MapDB database
@@ -89,6 +96,7 @@ public class MapDbPersistenceService implements QueryablePersistenceService {
     @Activate
     public void activate() {
         logger.debug("MapDB persistence service is being activated");
+        active = true;
 
         try {
             Files.createDirectories(DB_DIR);
@@ -145,6 +153,20 @@ public class MapDbPersistenceService implements QueryablePersistenceService {
     @Deactivate
     public void deactivate() {
         logger.debug("MapDB persistence service deactivated");
+        active = false;
+        long deadline = System.currentTimeMillis() + DEACTIVATE_TIMEOUT_MS;
+        while (pendingTasks.get() > 0 && System.currentTimeMillis() < deadline) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.warn("Interrupted while waiting for MapDB persistence tasks to finish.");
+                break;
+            }
+        }
+        if (pendingTasks.get() > 0) {
+            logger.warn("Timed out waiting for MapDB persistence tasks; {} tasks still pending.", pendingTasks.get());
+        }
         if (db != null) {
             db.close();
         }
@@ -173,6 +195,10 @@ public class MapDbPersistenceService implements QueryablePersistenceService {
 
     @Override
     public void store(Item item, @Nullable String alias) {
+        if (!active) {
+            logger.info("Skipping store of item '{}' because persistence service is not active", item.getName());
+            return;
+        }
         if (item.getState() instanceof UnDefType) {
             return;
         }
@@ -185,13 +211,28 @@ public class MapDbPersistenceService implements QueryablePersistenceService {
         MapDbItem mItem = new MapDbItem();
         mItem.setName(localAlias);
         mItem.setState(state);
-        mItem.setTimestamp(new Date());
-        threadPool.submit(() -> {
-            String json = serialize(mItem);
-            map.put(localAlias, json);
-            db.commit();
-            logger.debug("Stored '{}' with state '{}' as '{}' in MapDB database", localAlias, state, json);
-        });
+        mItem.setLastState(item.getLastState());
+        ZonedDateTime lastStateUpdate = item.getLastStateUpdate();
+        mItem.setTimestamp(lastStateUpdate != null ? Date.from(lastStateUpdate.toInstant()) : new Date());
+        ZonedDateTime lastStateChange = item.getLastStateChange();
+        mItem.setLastStateChange(lastStateChange != null ? Date.from(lastStateChange.toInstant()) : null);
+        pendingTasks.incrementAndGet();
+        try {
+            threadPool.submit(() -> {
+                try {
+                    String json = serialize(mItem);
+                    map.put(localAlias, json);
+                    db.commit();
+                    logger.debug("Stored '{}' with state '{}' as '{}' in MapDB database", localAlias, state, json);
+                } finally {
+                    pendingTasks.decrementAndGet();
+                }
+
+            });
+        } catch (RejectedExecutionException e) {
+            logger.warn("Task submission rejected for item '{}': {}", localAlias, e.getMessage());
+            pendingTasks.decrementAndGet();
+        }
     }
 
     @Override
@@ -204,14 +245,27 @@ public class MapDbPersistenceService implements QueryablePersistenceService {
         return item.isPresent() ? List.of(item.get()) : List.of();
     }
 
+    @Override
+    public @Nullable PersistedItem persistedItem(String itemName, @Nullable String alias) {
+        String json = map.get(alias != null ? alias : itemName);
+        if (json == null) {
+            return null;
+        }
+        Optional<MapDbItem> item = deserialize(json);
+        MapDbItem dbItem = item.orElse(null);
+        if (dbItem != null) {
+            dbItem.setName(itemName);
+        }
+        return dbItem;
+    }
+
     private String serialize(MapDbItem item) {
         return mapper.toJson(item);
     }
 
-    @SuppressWarnings("null")
     private Optional<MapDbItem> deserialize(String json) {
         MapDbItem item = mapper.fromJson(json, MapDbItem.class);
-        if (item == null || !item.isValid()) {
+        if (item == null) {
             logger.warn("Deserialized invalid item: {}", item);
             return Optional.empty();
         } else if (logger.isDebugEnabled()) {

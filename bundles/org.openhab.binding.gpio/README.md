@@ -3,6 +3,8 @@
 This binding adds GPIO support via the pigpiod daemon to openHAB.
 It requires the pigpiod daemon (<http://abyz.me.uk/rpi/pigpio/>) to be installed on the pi that should be controlled.
 
+**This binding does not work with RPi 5 due to a different GPIO hardware implementation that is not supported by pigpio.**
+
 ## Supported Things
 
 ### pigpio-remote
@@ -11,13 +13,17 @@ This thing represents a remote pigpiod instance running as daemon on a raspberry
 
 ## Thing Configuration
 
-### Pigpio Remote  (`pigpio-remote`)
+### Pigpio Remote (`pigpio-remote`)
 
-On a raspberry (or a compatible device) you have to install pigpiod.
+On a Raspberry Pi (or compatible device) you have to install pigpiod.
+
+**Beginning with Raspberry Pi OS Trixie, manually downloading and compiling the pigpio package is required as it has been removed from the distribution. Instructions here:** <https://github.com/joan2937/pigpio/issues/632#issuecomment-3379034242>
+
+Prior versions of Raspberry Pi OS should use the following instructions to install and configure pigpiod:
 
 ```shell
 sudo apt-get install pigpiod
-sudo raspi-config 
+sudo raspi-config
 ```
 
 -> Interfacing Options --> Remote GPIO --> YES --> OK --> Finish
@@ -42,7 +48,7 @@ sudo systemctl daemon-reload
 Now that Remote GPIO is enabled, get the pigpiod daemon going (even if installed with apt-get):
 
 ```shell
-sudo systemctl enable pigpiod 
+sudo systemctl enable pigpiod
 sudo systemctl start pigpiod
 ```
 
@@ -72,8 +78,6 @@ This action only occurs once after binding startup.
 - **Do Nothing:** The default, do nothing. Input channels will retain their default value (UNDEF).
 - **Refresh Channel:** Issues a refresh command on the input channels. This will refresh the channels from pigpiod causing the gpio pin state to reflect on the channel state.
 
-Input Channel Disconnect Connect Action:
-
 ### Input Channel Disconnect Connect Action
 
 Input Channel Disconnect Connect Action determines what happens when the binding disconnects from pigpiod.
@@ -86,7 +90,7 @@ Input Channel Disconnect Connect Action determines what happens when the binding
 Input Channel Reconnect Action determines what happens when the binding reconnects to pigpiod
 after a disconnect. This action does not occur on the initial binding connect to pigpiod.
 startup.
-  
+
 - **Do Nothing:** The default, do nothing. Input channels will retain their current value.
 - **Refresh Channel:** Issues a refresh command on the input channels. This will refresh the channels from
                     pigpiod causing the gpio pin state to reflect on the channel state.
@@ -95,10 +99,10 @@ startup.
 
 Output Channel Connect Action determines what happens when the binding initially connects to pigpiod.
 This action only occurs once after binding startup.
-  
+
 - **Do Nothing:** The default, do nothing. Output channels will retain their default value (UNDEF).
-- **All On:** Issues a ON command to all configured output channels.
-- **All Off:** Issues a OFF command to all configured output channels.
+- **All On:** Issues an ON command to all configured output channels.
+- **All Off:** Issues an OFF command to all configured output channels.
 - **Refresh Channel:** Issues a refresh command on the output channels. This will refresh the channels from
                     pigpiod causing the gpio pin state to reflect on the channel state. NOTE: This does
                     not update the gpio pin state on the Pi itself. It only updates the channel state
@@ -107,15 +111,15 @@ This action only occurs once after binding startup.
 ### Output Channel Disconnect Connect Action
 
 Output Channel Disconnect Connect Action determines what happens when the binding disconnects from pigpiod.
-  
-- **Do Nothing:** he default, do nothing. Input channels will retain their current value.
+
+- **Do Nothing:** The default, do nothing. Output channels will retain their current value.
 - **Set Undef:** Sets the output channel states to UNDEF to indicate that pigpiod has disconnected.
 
 ### Output Channel Reconnect Connect Action
 
 Output Channel Reconnect Action determines what happens when the binding reconnects to pigpiod
 after a disconnect. This action does not occur on the initial binding connect to pigpiod.
-  
+
 - **Do Nothing:** The default, do nothing. Output channels will retain their current value.
 - **Refresh Channel:** Issues a refresh command on the output channels. This will refresh the channels from
                     pigpiod causing the gpio pin state to reflect on the channel state. NOTE: This does
@@ -192,7 +196,7 @@ of time.
 - **On:** When the OFF command is issued to the channel. The Pulse feature will send an
                     ON command after the Pulse duration.
 - **Blink:** Cycles the channel ON, OFF, ON indefinitely with a 50% duty cycle. The Blink
-                    operation continues regardless of the commanded channel state. This was originaly
+                    operation continues regardless of the commanded channel state. This was originally
                     developed as a way to flash a status LED to visually confirm that a remote pigpiod
                     instance has connectivity to openHAB.
 
@@ -200,7 +204,7 @@ of time.
 
 Example for users who still prefer configuration files.
 
-demo.things:
+gpio.things:
 
 ```java
 Thing gpio:pigpio-remote:mypi "MyPi GPIO" [ host="192.168.1.5", port=8888,
@@ -231,10 +235,10 @@ Thing gpio:pigpio-remote:mypi "MyPi GPIO" [ host="192.168.1.5", port=8888,
                 Type pigpio-digital-input  : GPI6  [ gpioId=6, debouncingTime=50,pullupdown="UP",invert=true ]
                 Type pigpio-digital-input  : GPI13 [ gpioId=13,debouncingTime=50,pullupdown="DOWN",invert=false ]
                 Type pigpio-digital-input  : GPI26 [ gpioId=26,debouncingTime=50,pullupdown="OFF",invert=false ]
-    } 
+    }
 ```
 
-demo.items:
+gpio.items:
 
 ```java
 Switch SampleInput1 {channel="gpio:pigpio-remote:mypi:GPI23"}

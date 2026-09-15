@@ -1,4 +1,4 @@
-# UpnpControl Binding
+# UPnP Control Binding
 
 This binding acts as a UPnP control point to control UPnP AV media servers and media renderers as defined by the [UPnP Forum](https://openconnectivity.org/developer/specifications/upnp-resources/upnp/).
 It discovers UPnP media servers and renderers in the local network.
@@ -16,9 +16,9 @@ Each discovered renderer will also be registered as an openHAB audio sink.
 
 ## Supported Things
 
-Two thing types are supported, a server thing, `upnpserver`, and a renderer thing, `upnprenderer`.
+Two Thing types are supported, a server Thing, `upnpserver`, and a renderer Thing, `upnprenderer`.
 
-The binding has been tested with the AV Media Server and AV Media Renderer from Intel Developer Tools for UPnP Technology, available [here](https://www.meshcommander.com/upnptools).
+The binding has been tested with the AV Media Server and AV Media Renderer from [Intel Developer Tools](https://www.meshcommander.com/upnptools) for UPnP Technology.
 A second test set included a [TVersity Media Server](http://tversity.com/).
 It complies with part of the UPnP AV Media standard, but has not been verified to comply with the full specification.
 Tests have focused on the playback of audio, but if the server and renderer support it, other media types should play as well.
@@ -35,11 +35,11 @@ UPnP media servers and media renderers in the network will be discovered automat
 
 ## Thing Configuration
 
-Both the  `upnprenderer` and `upnpserver` thing require a configuration parameter, `udn` (Universal Device Name).
+Both the `upnprenderer` and `upnpserver` Things require a configuration parameter, `udn` (Universal Device Name).
 This `udn` uniquely defines the UPnP device.
-It can be retrieved from the thing ID when using auto discovery.
+It can be retrieved from the Thing ID when using auto discovery.
 
-Both also have `refresh` configuration parameter. This parameter defines a polling interval for polling the state of the `upnprenderer` or `upnpserver`.
+Both also have a `refresh` configuration parameter. This parameter defines a polling interval for polling the state of the `upnprenderer` or `upnpserver`.
 The default polling interval is 60s.
 0 turns off polling.
 
@@ -84,7 +84,7 @@ Thing upnpcontrol:upnprenderer:<rendererId> [udn="<udn of media renderer>", refr
 The `upnpserver` has the following channels (item type and access mode indicated in brackets):
 
 - `upnprenderer` (String, RW): The renderer to receive media content for playback.
-  
+
   The channel allows selecting from all discovered media renderers.
   This list is dynamically adjusted as media renderers are being added/removed.
 
@@ -94,25 +94,25 @@ The `upnpserver` has the following channels (item type and access mode indicated
 
   The browsing will start at the top of the content directory tree and allows you to go down and up (represented by ..) in the tree.
   The list of containers (directories) and media entries for selection in the content hierarchy is updated dynamically when selecting a container or entry.
-  
+
   This channel can also be used to skip to a specific container or entry in the content directory.
   Setting it to 0 will reposition to the top of the content hierarchy.
-  
+
   All media in the selection list, playable on the currently selected `upnprenderer` channel, are automatically queued to the renderer as next media for playback.
-  
+
   The `browseDown` configuration parameter influences the result in such a way that, for `browseDown = true`, if the result only contains exactly one container entry, the result will be the content of the container and not the container itself.
 
 - `search` (String, W): Search for media content on the server.
 
   Search criteria are defined in UPnP search criteria format.
   Examples: `dc:title contains "song"`, `dc:creator contains "SpringSteen"`, `unp:class = "object.item.audioItem"`, `upnp:album contains "Born in"`.
-  
-  The search, by default, starts at the value of the `currentid` and searches down from there unless the `searchfromroot` thing configuration parameter is set to `true`.
+
+  The search, by default, starts at the value of the `currentid` and searches down from there unless the `searchfromroot` Thing configuration parameter is set to `true`.
   The result (media and containers) will be available in the `browse` command option list.
   The `currentid` channel will be put to the id of the top container where the search started.
-  
+
   All media in the search result list, playable on the current selected `upnprenderer` channel, are automatically queued to the renderer as next media for playback.
-  
+
   The `browseDown` configuration parameter influences the result in such a way that, for `browseDown = true`, if the result only contains exactly one container entry, the result   will be the content of the container and not the container itself.
 
 - `playlistselect` (String, W): Select a playlist from the available playlists currently saved on disk.
@@ -142,7 +142,7 @@ The `upnpserver` has the following channels (item type and access mode indicated
 
   - `DELETE`: delete `playlist` from disk and remove from `playlistselect` command option list.
 
-A number of convenience channels replicate the basic control channels from the `upnprenderer` thing for the currently selected renderer on the `upnprenderer` channel.
+A number of convenience channels replicate the basic control channels from the `upnprenderer` Thing for the currently selected renderer on the `upnprenderer` channel.
 These channels are `volume`, `mute` and `control`.
 
 ### `upnprenderer`
@@ -162,7 +162,7 @@ The `upnprenderer` has the following default channels:
 | `favoriteselect`   | String      | W           | play favorite from list of saved favorites         |
 | `favorite`         | String      | RW          | set name for existing of new favorite              |
 | `favoriteaction`   | String      | W           | `SAVE` or `DELETE` `favorite`                      |
-| `playlistselect`   | String      | W           | play playlist from list of saved playlists        |
+| `playlistselect`   | String      | W           | play playlist from list of saved playlists         |
 | `title`            | String      | R           | media title                                        |
 | `album`            | String      | R           | media album                                        |
 | `albumart`         | Image       | R           | image for media album                              |
@@ -175,7 +175,7 @@ The `upnprenderer` has the following default channels:
 | `trackposition`    | Number:Time | RW          | current position in track during playback or pause |
 | `reltrackposition` | Dimmer      | RW          | current position relative to track duration        |
 
-A numer of `upnprenderer` audio control channels may be dynamically created depending on the specific renderer capabilities.
+A number of `upnprenderer` audio control channels may be dynamically created depending on the specific renderer capabilities.
 Examples of these are:
 
 | Channel Type ID    | Item Type   | Access Mode | Description                                        |
@@ -197,7 +197,7 @@ It is used for normal playback of a sound or stream.
 The second audio sink has `-notify` appended to the renderer id for its name, and has a special behavior.
 This audio sink is used to play notifications.
 When setting the volume parameter in the `playSound` command, the volume of the renderer will only change for the duration of playing the notification.
-The `maxNotificationDuration` configuration parameter of the renderer will limit the notification duration the value of the parameter in seconds.
+The `maxNotificationDuration` configuration parameter of the renderer will limit the notification duration to the value of the parameter in seconds.
 Normal playing will resume after the notification has played or when the maximum notification duration has been reached, whichever happens first.
 Longer sounds or streams will be cut off.
 
@@ -205,22 +205,22 @@ Longer sounds or streams will be cut off.
 
 There are multiple ways to serve content to a renderer for playback.
 
-- Directly provide a URI on the `URI` channel or through `playSound` or `playStream` actions:
+- Directly provide a URI on the `uri` channel or through `playSound` or `playStream` actions:
 
   Playing will start immediately, interrupting currently playing media.
-  No metadata for the media is available, therefore will be provided in the media channels for metadata (e.g. `title`, `album`, ...).
+  No metadata for the media is available; therefore, none will be provided in the media channels for metadata (e.g., `title`, `album`).
 
 - Content served from one or multiple `upnpserver` servers:
 
-  This is done on the `upnpserver` thing with the `upnprenderer` set the the renderer for playback.
+  This is done on the `upnpserver` Thing with the `upnprenderer` set to the renderer for playback.
   The media at any point in time in the `upnpserver browse` option list (result from browse, search or restoring a playlist), will be queued to the `upnprenderer` for playback.
   Playback does not start automatically if not yet playing.
   When already playing a queue, the first entry of the new queue will be playing as the next entry.
-  When playing an URI or media provided through an action, playback will immediately switch to the new queue.
-  
+  When playing a URI or media provided through an action, playback will immediately switch to the new queue.
+
   The `upnprenderer` will use that queue until it is replaced by another queue from the same or another `upnpserver`.
   Note that querying the content hierarchy on the `upnpserver` will update the `upnpserver browse` option list each time, and therefore the queue on the `upnprenderer` will be updated each time as long as `upnprenderer` is selected on `upnpserver`.
-  
+
 - Selecting a favorite or playlist on the renderer.
 
   Playback of the favorite or playlist will start immediately.
@@ -257,8 +257,8 @@ Playing the server queue will resume after playing the favorite.
 
 Playlists provide a way to define lists of server content for playback.
 
-A new playlist can be created on a server thing from the selection in the `upnpserver browse` selection list.
-When restoring a playlist on the server, the media in the playlist from the `upnpserver` thing used for restoring, will be put in the `upnpserver browse` selection list.
+A new playlist can be created on a server Thing from the selection in the `upnpserver browse` selection list.
+When restoring a playlist on the server, the media in the playlist from the `upnpserver` Thing used for restoring, will be put in the `upnpserver browse` selection list.
 
 The current selection of media playable on the currently selected renderer will automatically be stored as a playlist with name `current`.
 
@@ -308,7 +308,7 @@ BasicUI has a number of limitations that impact the way some of the channels can
 
 - The player control in BasicUI does not support fast forward or rewind.
 
-None of these are limitations when using the main UI.
+None of these are limitations when using the Main UI.
 
 ## Full Example
 
@@ -349,9 +349,9 @@ String Genre     "Genre"            <text>             (MediaRenderer) {channel=
 Number TrackNumber "Track Number"                      (MediaRenderer) {channel="upnpcontrol:upnprenderer:mymediarenderer:tracknumber"}
 Number:Time TrackDuration "Track Duration [%d %unit%]" (MediaRenderer) {channel="upnpcontrol:upnprenderer:mymediarenderer:trackduration"}
 Number:Time TrackPosition "Track Position [%d %unit%]" (MediaRenderer) {channel="upnpcontrol:upnprenderer:mymediarenderer:trackposition"}
-Dimmer RelTrackPosition "Relative Track Position ´[%d %%]" (MediaRenderer) {channel="upnpcontrol:upnprenderer:mymediarenderer:reltrackposition"}
+Dimmer RelTrackPosition "Relative Track Position [%d %%]" (MediaRenderer) {channel="upnpcontrol:upnprenderer:mymediarenderer:reltrackposition"}
 
-String Renderer  "Renderer [%s]"    <text>             (MediaServer)   {channel="upnpcontrol:upnpserver:mymediaserver:title"}
+String Renderer  "Renderer [%s]"    <text>             (MediaServer)   {channel="upnpcontrol:upnpserver:mymediaserver:upnprenderer"}
 String CurrentTitle "Current Entry [%s]" <text>        (MediaServer)   {channel="upnpcontrol:upnpserver:mymediaserver:currenttitle"}
 String Browse    "Browse"                              (MediaServer)   {channel="upnpcontrol:upnpserver:mymediaserver:browse"}
 String Search    "Search"                              (MediaServer)   {channel="upnpcontrol:upnpserver:mymediaserver:search"}

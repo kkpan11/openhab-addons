@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -323,7 +323,6 @@ public class ModbusDataThingHandler extends BaseThingHandler {
                 int writeStartRelative = writeStart - pollStart;
                 data = new ModbusRegisterArray(allMutatedBytes[writeStartRelative * 2],
                         allMutatedBytes[writeStartRelative * 2 + 1]);
-
             } else {
                 data = ModbusBitUtilities.commandToRegisters(transformedCommand, writeValueType);
             }

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2024 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,17 +12,20 @@
  */
 package org.openhab.binding.govee.internal;
 
-import java.io.IOException;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.openhab.binding.govee.internal.CommunicationManager.GoveeDiscoveryListener;
 import org.openhab.binding.govee.internal.model.DiscoveryData;
+import org.openhab.binding.govee.internal.model.DiscoveryMsg;
 import org.openhab.binding.govee.internal.model.DiscoveryResponse;
 import org.openhab.core.config.discovery.AbstractDiscoveryService;
 import org.openhab.core.config.discovery.DiscoveryResult;
@@ -79,17 +82,22 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 @Component(service = DiscoveryService.class, immediate = true, configurationPid = "discovery.govee")
-public class GoveeDiscoveryService extends AbstractDiscoveryService {
+public class GoveeDiscoveryService extends AbstractDiscoveryService implements GoveeDiscoveryListener {
+
+    private static final int BACKGROUND_SCAN_INTERVAL_SECONDS = 300;
+
     private final Logger logger = LoggerFactory.getLogger(GoveeDiscoveryService.class);
 
-    private CommunicationManager communicationManager;
+    private final CommunicationManager communicationManager;
+    private @Nullable ScheduledFuture<?> backgroundScanTask;
 
     private static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Set.of(GoveeBindingConstants.THING_TYPE_LIGHT);
 
     @Activate
-    public GoveeDiscoveryService(@Reference TranslationProvider i18nProvider, @Reference LocaleProvider localeProvider,
-            @Reference CommunicationManager communicationManager) {
-        super(SUPPORTED_THING_TYPES_UIDS, 0, false);
+    public GoveeDiscoveryService(final @Reference TranslationProvider i18nProvider,
+            final @Reference LocaleProvider localeProvider,
+            final @Reference CommunicationManager communicationManager) {
+        super(SUPPORTED_THING_TYPES_UIDS, CommunicationManager.SCAN_TIMEOUT_SEC, true);
         this.i18nProvider = i18nProvider;
         this.localeProvider = localeProvider;
         this.communicationManager = communicationManager;
@@ -103,42 +111,33 @@ public class GoveeDiscoveryService extends AbstractDiscoveryService {
 
     @Override
     protected void startScan() {
-        logger.debug("starting Scan");
-
-        getLocalNetworkInterfaces().forEach(localNetworkInterface -> {
-            logger.debug("Discovering Govee devices on {} ...", localNetworkInterface);
-            try {
-                communicationManager.runDiscoveryForInterface(localNetworkInterface, response -> {
-                    DiscoveryResult result = responseToResult(response);
-                    if (result != null) {
-                        thingDiscovered(result);
-                    }
-                });
-                logger.trace("After runDiscoveryForInterface");
-            } catch (IOException e) {
-                logger.debug("Discovery with IO exception: {}", e.getMessage());
-            }
-            logger.trace("After try");
-        });
+        logger.debug("Starting scan");
+        scheduler.schedule(this::doDiscovery, 0, TimeUnit.MILLISECONDS);
     }
 
     public @Nullable DiscoveryResult responseToResult(DiscoveryResponse response) {
-        final DiscoveryData data = response.msg().data();
+        final DiscoveryMsg msg = response.msg();
+        if (!"scan".equals(msg.cmd())) {
+            logger.trace("Ignoring non-scan message received during discovery - {}", response);
+            return null;
+        }
+
+        final DiscoveryData data = msg.data();
         final String macAddress = data.device();
-        if (macAddress.isEmpty()) {
-            logger.warn("Empty Mac address received during discovery - ignoring {}", response);
+        if (macAddress == null || macAddress.isEmpty()) {
+            logger.warn("Missing Mac address received during discovery - ignoring {}", response);
             return null;
         }
 
         final String ipAddress = data.ip();
-        if (ipAddress.isEmpty()) {
-            logger.warn("Empty IP address received during discovery - ignoring {}", response);
+        if (ipAddress == null || ipAddress.isEmpty()) {
+            logger.debug("Ignoring scan response without IP address (device not reachable over LAN) - {}", response);
             return null;
         }
 
         final String sku = data.sku();
-        if (sku.isEmpty()) {
-            logger.warn("Empty SKU (product name) received during discovery - ignoring {}", response);
+        if (sku == null || sku.isEmpty()) {
+            logger.warn("Missing SKU (product name) received during discovery - ignoring {}", response);
             return null;
         }
 
@@ -165,11 +164,11 @@ public class GoveeDiscoveryService extends AbstractDiscoveryService {
         }
 
         String hwVersion = data.wifiVersionHard();
-        if (hwVersion != null) {
+        if (hwVersion != null && !hwVersion.isEmpty()) {
             builder.withProperty(GoveeBindingConstants.HW_VERSION, hwVersion);
         }
         String swVersion = data.wifiVersionSoft();
-        if (swVersion != null) {
+        if (swVersion != null && !swVersion.isEmpty()) {
             builder.withProperty(GoveeBindingConstants.SW_VERSION, swVersion);
         }
 
@@ -193,5 +192,42 @@ public class GoveeDiscoveryService extends AbstractDiscoveryService {
             return List.of();
         }
         return result;
+    }
+
+    /**
+     * Command the {@link CommunicationManager) to run the scans.
+     */
+    private void doDiscovery() {
+        communicationManager.runDiscoveryForInterfaces(getLocalNetworkInterfaces(), this);
+    }
+
+    /**
+     * This method is called back by the {@link CommunicationManager} when it receives a {@link DiscoveryResponse}
+     * notification carrying information about potential newly discovered Things.
+     */
+    @Override
+    public synchronized void onDiscoveryResponse(DiscoveryResponse discoveryResponse) {
+        DiscoveryResult discoveryResult = responseToResult(discoveryResponse);
+        if (discoveryResult != null) {
+            thingDiscovered(discoveryResult);
+        }
+    }
+
+    @Override
+    protected void startBackgroundDiscovery() {
+        ScheduledFuture<?> backgroundScanTask = this.backgroundScanTask;
+        if (backgroundScanTask == null || backgroundScanTask.isCancelled()) {
+            this.backgroundScanTask = scheduler.scheduleWithFixedDelay(this::doDiscovery, 0,
+                    BACKGROUND_SCAN_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        }
+    }
+
+    @Override
+    protected void stopBackgroundDiscovery() {
+        ScheduledFuture<?> backgroundScanTask = this.backgroundScanTask;
+        if (backgroundScanTask != null) {
+            backgroundScanTask.cancel(true);
+            this.backgroundScanTask = null;
+        }
     }
 }
